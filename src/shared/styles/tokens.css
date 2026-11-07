@@ -1,0 +1,120 @@
+/* ===========================================================================
+   Arurem design tokens
+   ---------------------------------------------------------------------------
+   Rule: components consume SEMANTIC roles (background, primary, muted-foreground).
+   Brand scales exist only to define those roles and for illustrative surfaces.
+
+   Every token in this file is consumed somewhere — by a semantic role, by a
+   Tailwind class, or by both. If you add one, wire it up in globals.css too.
+
+   Contrast contract (verified, see docs/design-system.md):
+     ink-500  on sand-50 ... 4.92:1  → smallest safe body/secondary text on light
+     ink-400  on white  ... 3.48:1  → borders + icons only, NEVER text
+     ink-300  on white  ... 2.10:1  → decorative only, never a control boundary
+     gold-800 on gold-100... 6.27:1  → accent chip text on accent fill
+     gold-400 on white  ... 2.10:1  → gold FILLS and rules only, never text
+     gold-200 on jade-900.. 8.92:1  → gold text on dark jade
+     jade-700 on white  ... 9.52:1  → jade text on light
+   =========================================================================== */
+
+:root {
+  --radius: 0.75rem;
+
+  /* --- neutral scale (warm-shifted so it sits with gold, not against it) --- */
+  --ink-50: #f7f9f8;
+  --ink-100: #eef2f0;
+  --ink-200: #dce3df;
+  --ink-300: #a9b6af;
+  --ink-400: #7d8d86;
+  --ink-500: #5f7169;
+  --ink-600: #4a5a53;
+  --ink-700: #33443d;
+  --ink-800: #1d2a25;
+  --ink-900: #101815;
+
+  /* --- jade: the primary brand colour --- */
+  --jade-50: #eef6f2;
+  --jade-100: #d8ece3;
+  --jade-200: #b0d8c7;
+  --jade-700: #0f4f3d;
+  --jade-900: #0a3d2e;
+
+  /* --- gold: accent. Light stops are fills only. --- */
+  --gold-100: #f8f0d6;
+  --gold-200: #efdba4;
+  --gold-300: #e3c46e;
+  --gold-400: #d4af37;
+  --gold-500: #c19a2c;
+  --gold-600: #a17c22;
+  --gold-800: #6e5413;
+
+  /* --- sand: page canvas, warmer than pure grey --- */
+  --sand-50: #fbf9f4;
+  --sand-100: #f5f1e8;
+
+  /* --- semantic roles --- */
+  --background: var(--sand-50);
+  --foreground: var(--ink-900);
+  --card: #ffffff;
+  --card-foreground: var(--ink-900);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink-900);
+
+  --primary: var(--jade-900);
+  --primary-foreground: #ffffff;
+  --primary-subtle: var(--jade-50);
+
+  --secondary: var(--sand-100);
+  --secondary-foreground: var(--ink-800);
+
+  --muted: var(--sand-100);
+  --muted-foreground: var(--ink-500);
+
+  --accent: var(--gold-100);
+  --accent-foreground: var(--gold-800);
+
+  --destructive: #b42318;
+  --success: #067647;
+
+  --border: #e7e1d4;
+  --border-strong: var(--ink-400);
+  --input: #ffffff;
+  --ring: var(--jade-700);
+
+  /* Gradient kept as a token so no component hard-codes a hex triple. */
+  --gradient-jade: linear-gradient(135deg, var(--jade-900) 0%, var(--jade-700) 100%);
+
+  --elevation-card: 0 1px 2px rgb(16 24 21 / 4%), 0 8px 24px -12px rgb(16 24 21 / 10%);
+  --elevation-raised: 0 2px 4px rgb(16 24 21 / 5%), 0 16px 40px -16px rgb(16 24 21 / 16%);
+}
+
+.dark {
+  --background: #0b1210;
+  --foreground: #ecf1ee;
+  --card: #121b18;
+  --card-foreground: #ecf1ee;
+  --popover: #16201c;
+  --popover-foreground: #ecf1ee;
+
+  --primary: var(--gold-400);
+  --primary-foreground: #101815;
+  --primary-subtle: #1a2622;
+
+  --secondary: #1a2622;
+  --secondary-foreground: #ecf1ee;
+  --muted: #1a2622;
+  --muted-foreground: #9baea6;
+  --accent: #1f2c27;
+  --accent-foreground: var(--gold-200);
+
+  --destructive: #f97066;
+  --success: #47cd89;
+
+  --border: #24312c;
+  --border-strong: #56655e;
+  --input: #1a2622;
+  --ring: var(--gold-300);
+
+  --elevation-card: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px -12px rgb(0 0 0 / 50%);
+  --elevation-raised: 0 2px 4px rgb(0 0 0 / 40%), 0 16px 40px -16px rgb(0 0 0 / 60%);
+}

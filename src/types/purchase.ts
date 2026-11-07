@@ -1,75 +1,26 @@
-import type { PropsWithChildren } from 'react';
-import type { ViewMode } from './viewMode';
+import type { z } from 'zod';
+import type {
+  PURITY_VALUES,
+  purchaseDraftSchema,
+  purchaseSchema,
+} from '@/features/ledger/model/purchase.schema';
 
-export type Purchase = {
-  id: string;
-  sellerName: string;
-  weight: number;
-  purity: string;
-  note?: string;
-  createdAt: Date;
-  updatedAt?: Date;
-};
+/**
+ * Purchase domain types.
+ *
+ * Derived from the zod schemas so the runtime contract and the compile-time
+ * contract cannot drift. Type-only imports: this file adds no runtime edge.
+ */
 
-export type PurchaseWeightProps = {
-  weight: number;
-  purity: string;
-};
+export type Purity = (typeof PURITY_VALUES)[number];
 
-export type PurchaseListProps = {
-  viewMode: ViewMode;
-  purchases: Array<Purchase>;
-  selectedPurchase: Purchase | null;
-  onDelete: (id: string) => void;
-  onEdit: (purchase: Purchase) => void;
-  onSelectedPurchaseChange: (purchase: Purchase) => void;
-};
+export type Purchase = z.infer<typeof purchaseSchema>;
 
-export type PurchaseGridCardProps = {
-  purchase: Purchase;
-  selectedPurchase: Purchase | null;
-  onDelete: (id: string) => void;
-  onEdit: (purchase: Purchase) => void;
-  onSelectedPurchaseChange: (purchase: Purchase) => void;
-};
+/** The subset of a purchase the user edits. */
+export type PurchaseDraft = z.infer<typeof purchaseDraftSchema>;
 
-export type PurchaseCardActionsProps = {
-  purchase: Purchase;
-  selectedPurchase: Purchase | null;
-  onDelete: (id: string) => void;
-  onEdit: (purchase: Purchase) => void;
-  onSelectedPurchaseChange: (purchase: Purchase) => void;
-};
-
-export type PurchaseListCardProps = {
-  purchase: Purchase;
-  selectedPurchase: Purchase | null;
-  onDelete: (id: string) => void;
-  onEdit: (purchase: Purchase) => void;
-  onSelectedPurchaseChange: (purchase: Purchase) => void;
-};
-
-export type PurchaseListViewSelectorProps = {
-  viewMode: ViewMode;
-  onViewModeChange: (viewMode: ViewMode) => void;
-};
-
-export type PurchaseModificationFormProps = {
-  mode: 'create' | 'edit';
-  selectedPurchase: Purchase | null;
-  onSubmit: (data: Purchase) => void;
-};
-
-export type PurchaseCreateSheetProps = {
-  mode: 'create';
-  onCreate: (purchase: Purchase) => void;
-};
-
-export type PurchaseEditSheetProps = {
-  mode: 'edit';
-  selectedPurchase: Purchase | null;
-  onEdit: (purchase: Purchase) => void;
-};
-
-export type PurchaseModificationSheetProps = PropsWithChildren &
-  (PurchaseCreateSheetProps | PurchaseEditSheetProps);
+/**
+ * What react-hook-form holds while editing. `z.input` (not `z.output`) because
+ * the numeric field starts as `undefined` before the user types anything.
+ */
+export type PurchaseFormValues = z.input<typeof purchaseDraftSchema>;

@@ -1,83 +1,130 @@
 # Arurem
 
-**Arurem** is a private ledger application designed to securely track individual gold assets. Built with React and ShadCN, it provides a clean, modern interface for managing gold holdings, transactions, and asset records with a focus on clarity, privacy, and reliability.
+**A private, offline-first ledger for physical gold.** Track what you own by
+weight, purity, vendor, and acquisition date — entirely in your browser. No
+account, no server, no telemetry.
 
-## 🧱 Tech Stack
+![Version](https://img.shields.io/badge/version-2.1.0-0a3d2e)
 
-Arurem uses a carefully selected stack of libraries and tools to provide a robust and performant application.
+---
 
-### Frontend Framework
+## What it does
 
-* **React** (v19.2.5) - A popular JavaScript library for building user interfaces, known for its component-based architecture and fast rendering.
+- **Purity-adjusted totals.** Reports fine (24K-equivalent) gold, not just gross
+  grams — because 100 g of 18K is not 100 g of gold.
+- **Per-entry records.** Vendor, gross weight, karat, acquisition date, memo.
+- **Search, filter, sort.** By vendor, memo, karat, or weight; filter by purity;
+  sort by date, weight, or vendor.
+- **List and grid views.**
+- **JSON backup and restore.** Readable, versioned, yours. Imports are validated
+  row by row and report what was skipped.
+- **Offline PWA.** Installs to the home screen and works with no connection.
+- **Light and dark themes**, following your system preference.
 
-### UI Components
+Everything lives in `localStorage` on your device. Export a backup regularly —
+clearing browser data will delete your ledger.
 
-* **ShadCN** (v4.6.0) - A utility-first design system for building modern UI components with TailwindCSS and Radix UI.
-* **Radix UI** (v1.4.3) - A set of unstyled, accessible UI primitives that allow you to build fully custom design systems.
-* **Lucide React** (v1.14.0) - A set of high-quality, customizable icons to integrate into your UI components.
+## Stack
 
-### Styling
+| Concern | Choice |
+|---|---|
+| Framework | React 19 |
+| Build | Vite 8 (Rolldown) |
+| Language | TypeScript 6 (strict) |
+| Styling | Tailwind CSS 4 + design tokens |
+| Primitives | shadcn/ui (radix-luma) + Radix UI |
+| Icons | Lucide (single library) |
+| Forms | react-hook-form + Zod |
+| Animation | Motion |
+| Toasts | react-hot-toast, custom renderer |
+| Tests | Vitest + Testing Library (jsdom) |
+| PWA | vite-plugin-pwa (Workbox) |
 
-* **TailwindCSS** (v4.2.4) - A utility-first CSS framework for rapid UI development. Tailwind lets you design directly in your markup.
-* **Class Variance Authority** (v0.7.1) - Used for handling class variants and component-driven UI styling.
-* **Tailwind Merge** (v3.5.0) - A utility for merging class names intelligently when using TailwindCSS.
-
-### Form Handling & Validation
-
-* **React Hook Form** (v7.74.0) - A library for handling form state and validation with minimal re-renders.
-* **Zod** (for schema validation) - A TypeScript-first schema declaration and validation library.
-* **@hookform/resolvers** (v5.2.2) - Resolver library for integrating React Hook Form with external validation libraries like Zod.
-
-### Animations and Interactivity
-
-* **Motion** (v12.38.0) - A library for animations with React, providing advanced animations using the `framer-motion` API.
-* **Tw-animate-css** (v1.4.0) - A collection of animations that can be easily used with TailwindCSS.
-* **React Hot Toast** (v2.6.0) - A lightweight and customizable toast notification library for React.
-* **React Day Picker** (v9.14.0) - A flexible and customizable calendar and date picker for React.
-
-### Date & Time Management
-
-* **Date-fns** (v4.1.0) - A modern JavaScript date utility library for parsing, formatting, and manipulating dates.
-
-### Development Tools
-
-* **Vite** (v8.0.10) - A next-generation, fast build tool for modern web applications, optimized for speed.
-* **TypeScript** (v6.0.2) - A statically typed superset of JavaScript that enhances development with type safety.
-* **ESLint** (v10.2.1) - A tool for identifying and fixing JavaScript/TypeScript code issues.
-* **Prettier** (v3.8.3) - An opinionated code formatter that ensures consistent code style.
-* **Prettier Plugin for TailwindCSS** (v0.8.0) - A Prettier plugin for sorting TailwindCSS classes automatically.
-* **Vite Plugin React** (v6.0.1) - A plugin for integrating React into Vite projects seamlessly.
-
-## 📜 Version History
-
-### v1.0.0 — Initial Release (April 2026)
-
-* Project bootstrapped with Vite + React + TypeScript
-* TailwindCSS configured and integrated with design system
-* ShadCN UI components initialized
-* Base application structure established
-* ESLint and Prettier configured for code quality
-* Core dependencies integrated (forms, icons, animations, utilities)
-* Initial UI foundation prepared for ledger system
-
-## 🚀 Installation
+## Getting started
 
 ```bash
-git clone https://github.com/alikouhfar/arurem.git
-cd arurem
-npm install
-npm run dev
+bun install
+bun run dev        # http://localhost:5173
 ```
 
-## 📌 Scripts
+## Scripts
 
 ```bash
-npm run dev       # start development server
-npm run build     # production build
-npm run preview   # preview production build
-npm run lint      # lint codebase
+bun run dev        # dev server
+bun run build      # typecheck + production build (with service worker)
+bun run preview    # serve the production build
+bun run lint       # eslint (includes architecture + type-placement rules)
+bun run test       # vitest
+bun run typecheck  # tsc only
 ```
 
-## 📦 License
+All four gates (typecheck, lint, test, build) are expected to pass before a
+commit. CI should run the same four.
 
-This project is licensed under the MIT License.
+## Project structure
+
+Feature-sliced. Dependencies point one way: `app → features → shared → types`.
+
+```
+src/
+├── app/           composition root (LedgerPage, React root)
+├── features/
+│   ├── ledger/    components, hooks, model (schema, behaviour, storage, backup)
+│   └── summary/   aggregate metrics UI
+├── shared/        ui primitives, hooks, lib, styles, assets
+└── types/         every type declaration in the app
+```
+
+Full rationale and the enforced dependency rules: [`docs/architecture.md`](docs/architecture.md).
+
+## Design system
+
+Semantic colour tokens with a documented contrast contract, fluid type, real dark
+mode. **No raw hex in components.** See [`docs/design-system.md`](docs/design-system.md)
+for the token table, the measured contrast ratios, and the responsive behaviour at
+each breakpoint.
+
+## Conventions
+
+These are enforced by ESLint, not just documented:
+
+- **No `interface`** — object shapes are `type` aliases.
+- **No `enum`** — `as const` objects plus a derived union.
+- **All type declarations live in `src/types/`.** Implementation files import
+  their contracts; they do not declare them inline.
+- `shared/` may not import `features/` or `app/`.
+- A feature may not import `app/`.
+
+## Documentation
+
+| Doc | Contents |
+|---|---|
+| [`docs/design-system.md`](docs/design-system.md) | Tokens, contrast measurements, responsive rules, interaction model, accessibility status |
+| [`docs/architecture.md`](docs/architecture.md) | Directory tree, dependency rules, state model, test map, bundle budget |
+| [`docs/product-gap-analysis.md`](docs/product-gap-analysis.md) | Positioning, structural vulnerabilities, prioritised feature roadmap, monetisation, competitive analysis |
+| `docs/audit/` | Before/after screenshots at mobile, tablet, and desktop in both themes |
+
+## Version history
+
+### v2.1.0
+
+- Rebuilt on a tokenised design system (light + dark, AA-verified)
+- Fixed a data bug that made editing previously-edited entries impossible
+- Split "no entries" from "no search results"
+- Full folder restructure into feature slices; types centralised in `src/types/`
+- Added a 67-test suite covering domain logic, storage migration, and UI flows
+- Dark mode applies before first paint (no flash on refresh)
+- Typography: variable Inter (1.1 MB → 48 KB of font payload), woff2 only
+- Accessibility: 15 axe violations → 0
+
+### v2.0.0
+
+- PWA support, font caching, Docker Compose
+
+### v1.0.0 (April 2026)
+
+- Initial Vite + React + TypeScript scaffold
+
+## License
+
+MIT
