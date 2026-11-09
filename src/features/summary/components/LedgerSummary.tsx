@@ -1,4 +1,4 @@
-import { Card } from '@/shared/ui/card';
+import { Card } from '@/shared/ui/Card';
 import { formatGrams, formatPercent } from '@/shared/lib/format';
 import {
   Dialog,
@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/shared/ui/dialog';
+} from '@/shared/ui/Dialog';
 import { ArrowUpRight, Layers, Scale, Users } from 'lucide-react';
 import type { PurityMixCardProps, SummaryProps } from '@/types/components';
 import type { LedgerStats } from '@/types/ledger';

@@ -1,4 +1,4 @@
-import { useTheme } from '@/shared/hooks/use-theme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { cn } from '@/shared/lib/utils';
 import { Moon, Sun } from 'lucide-react';
 import type { ThemeToggleProps } from '@/types/ui';

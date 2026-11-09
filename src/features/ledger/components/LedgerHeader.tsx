@@ -1,7 +1,7 @@
-import { Button } from '@/shared/ui/button';
-import { ThemeToggle } from '@/shared/ui/theme-toggle';
-import { BrandMark } from '@/shared/components/app-shell';
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
+import { Button } from '@/shared/ui/Button';
+import { ThemeToggle } from '@/shared/ui/ThemeToggle';
+import { BrandMark } from '@/shared/components/AppShell';
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/Popover';
 import { Download, MoreHorizontal, Plus, Upload } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
 import type { LedgerHeaderProps } from '@/types/components';

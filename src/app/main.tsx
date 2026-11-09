@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Toaster } from 'react-hot-toast';
-import { LedgerPage } from './ledger-page';
+import { LedgerPage } from './LedgerPage';
 import '@/shared/styles/globals.css';
 
 createRoot(document.getElementById('root')!).render(

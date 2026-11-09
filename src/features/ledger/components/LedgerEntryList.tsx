@@ -1,8 +1,8 @@
-import { Button } from '@/shared/ui/button';
-import { Card } from '@/shared/ui/card';
+import { Button } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
 import { Plus, SearchX, ShieldCheck } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { LedgerEntryCard, LedgerEntryRow } from './ledger-entry';
+import { LedgerEntryCard, LedgerEntryRow } from './LedgerEntry';
 import type { EmptyStateProps, LedgerEntryListProps, NoResultsStateProps } from '@/types/components';
 
 export function LedgerEntryList({

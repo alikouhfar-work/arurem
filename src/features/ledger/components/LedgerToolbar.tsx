@@ -1,11 +1,11 @@
-import { Input } from '@/shared/ui/input';
+import { Input } from '@/shared/ui/Input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/shared/ui/select';
+} from '@/shared/ui/Select';
 import { LayoutGrid, List, Search, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { PURITY_VALUES } from '../model/purchase.schema';

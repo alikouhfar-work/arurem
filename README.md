@@ -86,12 +86,16 @@ each breakpoint.
 
 ## Conventions
 
-These are enforced by ESLint, not just documented:
+These are enforced, not just documented:
 
 - **No `interface`** — object shapes are `type` aliases.
 - **No `enum`** — `as const` objects plus a derived union.
 - **All type declarations live in `src/types/`.** Implementation files import
   their contracts; they do not declare them inline.
+- **Component files are `PascalCase.tsx`; everything else is `camelCase.ts`.**
+  Hooks are `useLedger.ts`, model modules `purchase.schema.ts`, types
+  `purchase.ts`. Test files mirror what they cover (`LedgerPage.test.tsx`).
+  Checked by `bun run check:naming`, which runs inside `lint` and `test`.
 - `shared/` may not import `features/` or `app/`.
 - A feature may not import `app/`.
 

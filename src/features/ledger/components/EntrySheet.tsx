@@ -4,8 +4,8 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from '@/shared/ui/sheet';
-import { EntryForm } from './entry-form';
+} from '@/shared/ui/Sheet';
+import { EntryForm } from './EntryForm';
 import type { EntrySheetProps } from '@/types/components';
 
 export function EntrySheet({ open, onOpenChange, purchase, onSubmit }: EntrySheetProps) {

@@ -11,18 +11,18 @@ arurem/
 ├── src/
 │   ├── app/                          # composition root — nothing else
 │   │   ├── main.tsx                  # React root, Toaster, CSS import
-│   │   └── ledger-page.tsx           # the only component that composes features
+│   │   └── LedgerPage.tsx           # the only component that composes features
 │   │
 │   ├── features/                     # vertical slices, one per user capability
 │   │   ├── ledger/
 │   │   │   ├── components/           # presentational only; props in, JSX out
-│   │   │   │   ├── ledger-header.tsx
-│   │   │   │   ├── ledger-toolbar.tsx
-│   │   │   │   ├── ledger-entry.tsx          (row + card)
-│   │   │   │   ├── ledger-entry-list.tsx     (+ the two empty states)
-│   │   │   │   ├── entry-form.tsx
-│   │   │   │   ├── entry-sheet.tsx
-│   │   │   │   └── delete-dialog.tsx
+│   │   │   │   ├── LedgerHeader.tsx
+│   │   │   │   ├── LedgerToolbar.tsx
+│   │   │   │   ├── LedgerEntry.tsx          (row + card)
+│   │   │   │   ├── LedgerEntryList.tsx     (+ the two empty states)
+│   │   │   │   ├── EntryForm.tsx
+│   │   │   │   ├── EntrySheet.tsx
+│   │   │   │   └── DeleteDialog.tsx
 │   │   │   ├── hooks/
 │   │   │   │   ├── useLedger.ts       # reducer + persistence + selectors wiring
 │   │   │   │   └── usePurchaseForm.ts # react-hook-form + zod binding
@@ -34,25 +34,26 @@ arurem/
 │   │   │       └── backup.ts          # export / import / validation
 │   │   └── summary/
 │   │       └── components/
-│   │           └── ledger-summary.tsx # hero metric, vendor count, purity mix
+│   │           └── LedgerSummary.tsx # hero metric, vendor count, purity mix
 │   │
 │   ├── shared/                       # the bottom layer: no feature imports
 │   │   ├── components/
-│   │   │   └── app-shell.tsx          # page frame, skip link, brand mark
+│   │   │   └── AppShell.tsx          # page frame, skip link, brand mark
 │   │   ├── hooks/
-│   │   │   └── use-theme.ts
+│   │   │   └── useTheme.ts
 │   │   ├── lib/
 │   │   │   ├── format.ts              # Intl number/date formatting
+│   │   │   ├── theme.ts               # resolveTheme, storage key
 │   │   │   └── utils.ts               # cn()
 │   │   ├── styles/
 │   │   │   ├── tokens.css
 │   │   │   └── globals.css
 │   │   ├── assets/fonts/              # woff2 only, per-family CSS
 │   │   └── ui/                        # shadcn primitives + app primitives
-│   │       ├── alert-dialog.tsx  calendar.tsx   input.tsx     sheet.tsx
-│   │       ├── button.tsx        card.tsx       textarea.tsx
-│   │       ├── dialog.tsx        field.tsx      popover.tsx      select.tsx
-│   │       ├── theme-toggle.tsx  toast.tsx      toast-card.tsx
+│   │       ├── AlertDialog.tsx  Calendar.tsx   Input.tsx     Sheet.tsx
+│   │       ├── Button.tsx        Card.tsx       Textarea.tsx
+│   │       ├── Dialog.tsx        Field.tsx      Popover.tsx      Select.tsx
+│   │       ├── ThemeToggle.tsx  toast.tsx      toast-Card.tsx
 │   │
 │   ├── types/                         # EVERY type declaration lives here
 │   │   ├── purchase.ts                # Purity, Purchase, PurchaseDraft, PurchaseFormValues
@@ -72,6 +73,17 @@ arurem/
 │   └── audit/{baseline,after}/*.png
 └── public/icons/
 ```
+
+### File naming
+
+- **Components → `PascalCase.tsx`.** A file is a component if it exports one.
+  `Toast.tsx` is the exception that proves the rule: it exports only functions
+  (`showSuccess` / `showError` / `showInfo`), so it stays camelCase.
+- **Everything else → `camelCase.ts`.** Hooks (`useLedger.ts`), model modules
+  (`purchase.schema.ts`), libs (`format.ts`), and types (`purchase.ts`).
+- Multi-word suffixes keep their dots: `purchase.schema.ts`, `.test.tsx`.
+- Enforced by `scripts/checkFileNaming.ts` in the test run — a new
+  `ledger-row.tsx` or `AppShell-helpers.ts` fails CI.
 
 ## 2. Dependency rules
 
@@ -152,7 +164,7 @@ components                 render
 | `storage.test.ts` | Envelope round-trip, corrupt-JSON recovery, v1 migration, row repair, quota error |
 | `backup.test.ts` | Export shape, envelope *and* bare-array import, per-row skipping, repair |
 | `useLedger.test.ts` | All 7 reducer actions, undo index, idempotent restore, persistence failure |
-| `ledger-page.test.tsx` | 12 integration tests: create, edit-with-updatedAt, delete+undo, persistence across remount, empty vs no-results, purity filter, accessible names |
+| `LedgerPage.test.tsx` | 12 integration tests: create, edit-with-updatedAt, delete+undo, persistence across remount, empty vs no-results, purity filter, accessible names |
 
 The integration tests are regression locks: they fail if the old behaviour
 returns. The `updatedAt` edit test would have caught the blocker before release.

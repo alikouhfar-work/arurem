@@ -2,7 +2,7 @@ import { render as rtlRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Toaster } from 'react-hot-toast';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LedgerPage } from './ledger-page';
+import { LedgerPage } from './LedgerPage';
 
 /**
  * End-to-end-ish integration tests against the real page. These cover the

@@ -1,5 +1,5 @@
 import { toast } from 'react-hot-toast';
-import { ToastCard } from './toast-card';
+import { ToastCard } from './ToastCard';
 import type { ToastOptions, ToastTone } from '@/types/ui';
 
 /**

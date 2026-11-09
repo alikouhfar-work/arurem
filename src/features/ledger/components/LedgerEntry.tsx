@@ -1,4 +1,4 @@
-import { Button } from '@/shared/ui/button';
+import { Button } from '@/shared/ui/Button';
 import { formatDate, formatGrams } from '@/shared/lib/format';
 import { PURITY_LABELS } from '../model/purchase';
 import { CalendarDays, History, Pencil, Trash2 } from 'lucide-react';

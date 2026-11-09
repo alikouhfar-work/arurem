@@ -104,7 +104,7 @@ the class, background, and `color-scheme` are already correct. Checked across al
 seven stored-value × OS-preference combinations, in dev and in the production
 build (normal and hard reload).
 
-`src/app/theme-boot.test.ts` guards the duplication: it asserts the script is
+`src/app/themeBoot.test.ts` guards the duplication: it asserts the script is
 inline and ahead of the module entry, uses the same storage key, matches the
 light and dark backgrounds in `tokens.css`, resolves every combination
 identically to `resolveTheme()`, sets `color-scheme`, and cannot throw.

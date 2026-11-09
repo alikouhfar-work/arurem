@@ -1,10 +1,10 @@
-import { Button } from '@/shared/ui/button';
-import { Calendar } from '@/shared/ui/calendar';
-import { Field, FieldControl, FieldError, FieldHint, FieldLabel } from '@/shared/ui/field';
-import { Input } from '@/shared/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { Textarea } from '@/shared/ui/textarea';
+import { Button } from '@/shared/ui/Button';
+import { Calendar } from '@/shared/ui/Calendar';
+import { Field, FieldControl, FieldError, FieldHint, FieldLabel } from '@/shared/ui/Field';
+import { Input } from '@/shared/ui/Input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/Popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/Select';
+import { Textarea } from '@/shared/ui/Textarea';
 import { formatDate, toDate } from '@/shared/lib/format';
 import { CalendarDays, Check, Loader2 } from 'lucide-react';
 import { PURITY_LABELS, PURITY_VALUES, purityFineness } from '../model/purchase';
