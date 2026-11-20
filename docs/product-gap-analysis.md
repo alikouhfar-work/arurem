@@ -53,7 +53,7 @@ Not padding — these are the assets to protect in any redesign:
 
 Ranked by how badly they hurt, not by how hard they are to fix.
 
-### V1 — Data loss is one cleared cache away. **Critical.**
+### V1 — Data loss is one cleared cache away. **Critical — mitigated in v2.3.0.**
 
 `localStorage` is:
 - wiped when the user clears browsing data,
@@ -62,12 +62,15 @@ Ranked by how badly they hurt, not by how hard they are to fix.
 - not shared across browsers or devices,
 - not recoverable if the device is lost.
 
-The app's only mitigation is a manual JSON export the user must remember to do.
-**For an asset ledger this is a product-ending flaw.** A user who loses six
-months of records will not come back, and will tell people why.
-
-This is not a UX nit — it is the number one thing to fix, and it is fixable
-without abandoning the privacy promise (see R1).
+**v2.3.0** implements R1 in full: `navigator.storage.persist()` is requested once
+the ledger is non-empty, the last five ledger states are kept in a rotating local
+snapshot ring, a corrupt payload now *offers* the newest snapshot instead of
+silently presenting an empty ledger, and the export nudge fires at the fifth
+entry and monthly thereafter. The residual risk is exactly the one a browser-only
+app cannot remove: clearing site data still destroys everything, which is what the
+nudge exists to make survivable. What remains is R1's *final* suggestion — opt-in
+encrypted backup that can leave the device (F12 + F15) — and that is a product
+decision, not an engineering one.
 
 ### V2 — There is no price, so there is no value. **Resolved in v2.2.0.**
 
@@ -135,9 +138,9 @@ best.
 |---|---|---|---|---|
 | F1 | **Sales / disposals** (transactions, not just purchases) | Without it the ledger is wrong the first time anyone sells | M | **P0** |
 | F2 | **Cost basis + current value** (price per gram at purchase + manual spot price) | The whole point of tracking an asset | M | **P0** |
-| F3 | **Encrypted local backup + restore, with a reminder cadence** | V1 is existential | M | **P0** |
+| F3 | **Encrypted local backup + restore, with a reminder cadence** | V1 is existential — the reminder cadence now ships; encryption has not | S | P1 |
 | F4 | **Storage location per holding** (vault, bank, home, custodian) | "Where is it" is half the core proposition, and is currently unmodelled | S | **P0** |
-| F5 | **Install prompt + storage-persistence request** (`navigator.storage.persist()`) | Free retention and loss prevention | XS | **P0** |
+| F5 | **Install prompt + storage-persistence request** (`navigator.storage.persist()`) | Free retention and loss prevention — persistence now ships; the install prompt has not | XS | P1 |
 | F6 | **Purity presets with actual fineness** (999.9, 916, 750, custom) | "22K" varies by jurisdiction; a real ledger needs fineness | S | P1 |
 | F7 | **Holdings over time** (chart) | Turns records into insight | M | P1 |
 | F8 | **Multi-metal** (silver, platinum) | Natural expansion | M | P1 |
@@ -155,21 +158,28 @@ Effort: XS < ½ day · S < 2 days · M < 1 week · L multi-week.
 
 ## 5. Feature recommendations, spec level
 
-### R1 — Make data loss structurally impossible (fixes V1)
+### R1 — Make data loss structurally impossible (fixes V1) — **shipped in v2.3.0**
 
 Three layers, in order of value per hour:
 
 1. **Request persistent storage** on first entry:
    `navigator.storage.persist()`. This exempts the origin from eviction in
-   Chrome/Edge and is one line. Free.
-2. **Automated rotating local backups.** Keep the last N snapshots in IndexedDB
-   under a separate key, so a corrupt current write cannot destroy the previous
-   state. Cheap, and it converts "one bad write" from catastrophic to annoying.
+   Chrome/Edge and is one line. Free. — *Shipped: requested once the ledger is
+   non-empty, never on first paint. The outcome (granted / denied /
+   unsupported) is reported in the footer rather than assumed.*
+2. **Automated rotating local backups.** Keep the last N snapshots beside the
+   ledger, so a corrupt current write cannot destroy the previous state. —
+   *Shipped: five snapshots, minimum ten minutes apart, written outside the
+   ledger envelope so a corrupt ledger never takes the snapshots with it, and
+   offered on load when the live payload cannot be read.*
 3. **Nudge export.** After the 5th entry and then monthly, a dismissible prompt:
    *"You have 12 entries that exist only in this browser. Download a backup?"*
-   Track `lastExportedAt` in the store so it is not nagging, it is accurate.
+   Track `lastExportedAt` in the store so it is not nagging, it is accurate. —
+   *Shipped: bookkeeping lives in its own key (`arurem.safety.v1`), not in the
+   ledger, so backup bookkeeping can never corrupt ledger data.*
 
 Then, and only then, consider encrypted cloud backup as an *opt-in* (F12 + F15).
+That remains the open piece.
 
 ### R2 — Turn snapshots into transactions (fixes V4, enables F1/F10)
 
@@ -265,8 +275,8 @@ competitors structurally cannot copy it.
 
 ## 8. What I would do next, in order
 
-1. **`navigator.storage.persist()` + monthly export nudge** — half a day, removes
-   the existential risk. Do this before anything else.
+1. ~~**`navigator.storage.persist()` + monthly export nudge**~~ — **shipped in
+   v2.3.0**, together with a rotating local snapshot ring and load-time recovery.
 2. **Location field on entries** — small schema change, closes half the core
    promise.
 3. **Transaction model (`kind: acquisition | disposal`)** — the architectural
@@ -274,9 +284,11 @@ competitors structurally cannot copy it.
    user base is small.
 4. **Cost basis + manual spot price** — turns grams into value.
 5. **Install prompt card** — free retention.
-6. **Delete the trust theatre** — free credibility.
+6. **Delete the trust theatre** — free credibility. The footer now states three
+   verifiable facts instead of four unverifiable adjectives; the remaining
+   prestige copy in the hero has not been touched.
 
-Items 1, 2, 5, and 6 are collectively about two days of work and materially
+Items 2, 5, and 6 are collectively about two days of work and materially
 change what the product is.
 
 ---

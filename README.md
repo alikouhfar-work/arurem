@@ -4,7 +4,7 @@
 weight, purity, vendor, and acquisition date — entirely in your browser. No
 account, no server, no telemetry, and live pricing in USD and Iranian toman.
 
-![Version](https://img.shields.io/badge/version-2.2.0-0a3d2e)
+![Version](https://img.shields.io/badge/version-2.3.0-0a3d2e)
 
 ---
 
@@ -24,10 +24,15 @@ account, no server, no telemetry, and live pricing in USD and Iranian toman.
 - **JSON backup and restore.** Readable, versioned, yours. Imports are validated
   row by row and report what was skipped.
 - **Offline PWA.** Installs to the home screen and works with no connection.
+- **Data safety.** The app asks the browser to protect its storage from eviction,
+  keeps the last five ledger states as local snapshots, and offers the newest one
+  if a saved payload ever fails to load. A backup reminder appears at the fifth
+  entry and monthly after that, with the date of your last export in the footer.
 - **Light and dark themes**, following your system preference.
 
 Everything lives in `localStorage` on your device. Export a backup regularly —
-clearing browser data will delete your ledger.
+clearing browser data will delete your ledger, and no browser-local protection
+can survive that.
 
 ### The one network call
 
@@ -148,6 +153,29 @@ These are enforced, not just documented:
 | `docs/audit/` | Before/after screenshots at mobile, tablet, and desktop in both themes |
 
 ## Version history
+
+### v2.3.0
+
+- **Eviction protection.** `navigator.storage.persist()` is requested once the
+  ledger is non-empty. The outcome is reported honestly in the footer — granted,
+  denied, or unsupported (Safari) — never assumed
+- **Rotating local snapshots.** The last five ledger states are kept in
+  `arurem.snapshots.v1`, at most ten minutes apart, outside the ledger envelope so
+  a corrupt ledger cannot take them with it
+- **Load-time recovery.** An unreadable payload now offers the newest snapshot
+  instead of presenting an empty ledger as fact. Nothing is applied without
+  consent — an older copy is not obviously better than a fresh empty one
+- **Export nudge that is accurate, not nagging.** Fires at the fifth entry and
+  monthly after that, because until it does the entries exist in exactly one place
+- **Price polling is now every five minutes**, down from 30 seconds. The refresh
+  control and the visibility handler still fetch immediately, so returning to the
+  tab is never stale — but the app no longer spends 2,880 requests a day on a
+  number nobody trades on
+- **Honest footer.** "Stored on this device · 6 entries · last backup 2 Nov ·
+  browser may clear it · snapshot 2 Nov" replaces "Stored locally in this browser"
+- 187 tests (up from 133), including the ring's rotation and interval floor, the
+  nudge's threshold and dismissal expiry, a lock on the five-minute polling
+  cadence, and an integration suite that asserts none of this touches the network
 
 ### v2.2.0
 

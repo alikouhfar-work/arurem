@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEGACY_KEY, STORAGE_KEY, loadPurchases, persistPurchases } from './storage';
+import { captureSnapshot } from './snapshots';
 import type { LoadResult } from '@/types/storage';
 import type { Purchase } from '@/types/purchase';
 
@@ -114,5 +115,53 @@ describe('storage', () => {
     });
     expect(() => persistPurchases([row()])).toThrow(/local storage/i);
     spy.mockRestore();
+  });
+
+  describe('recovery', () => {
+    it('reports no recovery on a clean load', () => {
+      persistPurchases([row()]);
+      expect(loadPurchases().recovery).toBeNull();
+    });
+
+    it('offers the newest snapshot when the payload is unparseable', () => {
+      captureSnapshot([row({ id: 'snap-1', sellerName: 'From Snapshot' })], {
+        now: '2026-11-01T00:00:00.000Z',
+      });
+      localStorage.setItem(STORAGE_KEY, '{not json');
+
+      const result = loadPurchases();
+      expect(result.recoveredFromCorruption).toBe(true);
+      expect(result.purchases).toEqual([]);
+      expect(result.recovery?.purchases[0]?.sellerName).toBe('From Snapshot');
+    });
+
+    it('treats a payload that yields no readable rows as corruption', () => {
+      // Rows existed, but every one was unrepairable. The user's ledger is
+      // equally gone, so the same escape hatch has to be offered.
+      captureSnapshot([row({ id: 'snap-2' })], { now: '2026-11-01T00:00:00.000Z' });
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ version: 2, purchases: [{ sellerName: '', weight: 0 }] }),
+      );
+
+      const result = loadPurchases();
+      expect(result.recoveredFromCorruption).toBe(true);
+      expect(result.purchases).toEqual([]);
+      expect(result.recovery?.entryCount).toBe(1);
+      expect(result.recovery?.purchases[0]?.sellerName).toBe('Royal Treasury');
+    });
+
+    it('does not offer recovery when the payload is simply absent', () => {
+      captureSnapshot([row()], { now: '2026-11-01T00:00:00.000Z' });
+      // No ledger key at all: a first visit, not a loss.
+      const result = loadPurchases();
+      expect(result.recoveredFromCorruption).toBe(false);
+      expect(result.recovery).toBeNull();
+    });
+
+    it('offers no recovery when corruption is detected and no snapshot exists', () => {
+      localStorage.setItem(STORAGE_KEY, '{not json');
+      expect(loadPurchases().recovery).toBeNull();
+    });
   });
 });

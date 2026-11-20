@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import type { Purchase, PurchaseDraft } from './purchase';
 import type { LedgerStats, PurityFilter, SortKey, ViewMode } from './ledger';
 import type { MarketRatesStatus, MarketQuote } from './market';
+import type { BackupSnapshot, ExportNudge, PersistenceStatus } from './persistence';
 
 /** Prop contracts for the ledger feature's presentational components. */
 
@@ -120,4 +121,24 @@ export type AppShellProps = {
 
 export type BrandMarkProps = {
   version: string;
+};
+
+export type ExportNudgeProps = {
+  nudge: ExportNudge;
+  onExport: () => void;
+  onDismiss: () => void;
+};
+
+export type RecoveryBannerProps = {
+  snapshot: BackupSnapshot;
+  onRestore: () => void;
+  onDismiss: () => void;
+};
+
+export type LedgerFooterProps = {
+  version: string;
+  entryCount: number;
+  persistence: PersistenceStatus;
+  lastExportedAt: string | null;
+  lastSnapshotAt: string | null;
 };

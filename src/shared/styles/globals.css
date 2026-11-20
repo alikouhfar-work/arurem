@@ -160,7 +160,7 @@
    never changes and no contrast pair has to be re-verified for each state.
 
    Driven by a changing React key, so a repeat tick replays the animation
-   without class toggling. Duration is short enough not to lag a 30s poll and
+   without class toggling. Short enough to settle long before the next poll and
    long enough to catch peripheral vision.
    --------------------------------------------------------------------------- */
 @keyframes flash-up {

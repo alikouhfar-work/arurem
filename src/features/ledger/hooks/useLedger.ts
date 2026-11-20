@@ -14,8 +14,8 @@ import type { LedgerAction, LedgerState, UseLedgerViewOptions } from '@/types/le
  */
 
 const initialState = (): LedgerState => {
-  const { purchases } = loadPurchases();
-  return { purchases, status: 'idle', error: null };
+  const { purchases, recovery } = loadPurchases();
+  return { purchases, status: 'idle', error: null, recovery };
 };
 
 export const ledgerReducer = (state: LedgerState, action: LedgerAction): LedgerState => {
@@ -45,7 +45,10 @@ export const ledgerReducer = (state: LedgerState, action: LedgerAction): LedgerS
     }
 
     case 'replace-all':
-      return { ...state, purchases: action.purchases, status: 'idle', error: null };
+      return { ...state, purchases: action.purchases, status: 'idle', error: null, recovery: null };
+
+    case 'dismiss-recovery':
+      return state.recovery === null ? state : { ...state, recovery: null };
 
     case 'persist-failed':
       return { ...state, status: 'error', error: action.message };
@@ -111,15 +114,19 @@ export const useLedger = () => {
 
   const stats = useMemo(() => computeStats(state.purchases), [state.purchases]);
 
+  const dismissRecovery = useCallback(() => dispatch({ type: 'dismiss-recovery' }), []);
+
   return {
     purchases: state.purchases,
     stats,
     error: state.error,
+    recovery: state.recovery,
     create,
     update,
     remove,
     restore,
     replaceAll,
+    dismissRecovery,
     dismissError: () => dispatch({ type: 'persist-ok' }),
   };
 };

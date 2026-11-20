@@ -13,8 +13,14 @@ import type {
  *
  * Polling rather than a WebSocket: neither provider offers one, and a socket to
  * a third party would mean a second protocol, a reconnect state machine, and an
- * open connection on a PWA that may sit backgrounded for days. A 30s interval
- * against feeds that themselves cache costs nothing and cannot leak.
+ * open connection on a PWA that may sit backgrounded for days. A five-minute
+ * interval against feeds that themselves cache costs nothing and cannot leak.
+ *
+ * Five minutes is a deliberate floor, not a tuning knob. Gold does not move far
+ * in five minutes, a ledger is not a trading desk, and the two requests are the
+ * only network traffic this app makes — so the cost of polling faster is paid in
+ * somebody else's bandwidth for a number nobody acts on. A user who wants a
+ * fresh figure right now has the refresh control.
  *
  * Three rules this hook exists to enforce:
  *
@@ -24,12 +30,15 @@ import type {
  *  2. **Never poll a hidden tab.** Browsers throttle background timers and the
  *     tab may be suspended for hours; fetching on return is both accurate and
  *     cheap. Returning to the tab forces a fetch rather than waiting out the
- *     interval.
+ *     interval — which matters more, not less, now that the interval is longer.
  *  3. **Never re-render for an identical quote.** The new quote is compared
  *     field by field before it is committed.
  */
 
-const REFRESH_MS = 30_000;
+const REFRESH_MS = 5 * 60_000;
+
+/** Exported so the cadence can be asserted by a test rather than assumed. */
+export const POLL_INTERVAL_MS = REFRESH_MS;
 
 const sameLeg = (a: FeedLeg | null, b: FeedLeg | null): boolean =>
   a === b || (a !== null && b !== null && a.value === b.value && a.updatedAt === b.updatedAt);

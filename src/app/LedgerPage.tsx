@@ -3,12 +3,16 @@ import { showError, showInfo, showSuccess } from '@/shared/ui/toast';
 import { useCallback, useState } from 'react';
 import { LedgerEntryList } from '@/features/ledger/components/LedgerEntryList';
 import { LedgerHeader } from '@/features/ledger/components/LedgerHeader';
+import { LedgerFooter } from '@/features/ledger/components/LedgerFooter';
+import { ExportNudge } from '@/features/ledger/components/ExportNudge';
+import { RecoveryBanner } from '@/features/ledger/components/RecoveryBanner';
 import { LedgerSummary } from '@/features/summary/components/LedgerSummary';
 import { LedgerToolbar } from '@/features/ledger/components/LedgerToolbar';
 import { PriceTicker } from '@/features/market/components/PriceTicker';
 import { EntrySheet } from '@/features/ledger/components/EntrySheet';
 import { DeleteDialog } from '@/features/ledger/components/DeleteDialog';
 import { useLedger, useLedgerView } from '@/features/ledger/hooks/useLedger';
+import { useDataSafety } from '@/features/ledger/hooks/useDataSafety';
 import { useMarketRates } from '@/shared/hooks/useMarketRates';
 import { downloadExport, parseImport, readFileAsText } from '@/features/ledger/model/backup';
 import type { Purchase, PurchaseDraft } from '@/types/purchase';
@@ -23,6 +27,9 @@ export const LedgerPage = () => {
   // One subscription for the whole page. Mounting the hook per card would open
   // an interval for each and let two cards show different spot prices.
   const market = useMarketRates();
+  // Observes the ledger; never mutates it. Snapshots, eviction protection, and
+  // the export reminder are all consequences of `purchases` changing.
+  const safety = useDataSafety(ledger.purchases);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('acquired-desc');
@@ -89,10 +96,22 @@ export const LedgerPage = () => {
       return;
     }
     downloadExport(ledger.purchases);
+    // Recorded only after the download is triggered, so the reminder reflects
+    // an export that actually happened rather than one that was asked for.
+    safety.markExported();
     showSuccess('Backup downloaded', {
       description: `${ledger.purchases.length} ${ledger.purchases.length === 1 ? 'entry' : 'entries'} saved as JSON.`,
     });
-  }, [ledger.purchases]);
+  }, [ledger.purchases, safety]);
+
+  const handleRestoreSnapshot = useCallback(() => {
+    if (!ledger.recovery) return;
+    const { purchases } = ledger.recovery;
+    ledger.replaceAll(purchases);
+    showSuccess('Snapshot restored', {
+      description: `${purchases.length} ${purchases.length === 1 ? 'entry' : 'entries'} recovered from a local copy.`,
+    });
+  }, [ledger]);
 
   const handleImport = useCallback(
     async (file: File) => {
@@ -147,6 +166,22 @@ export const LedgerPage = () => {
         </div>
       ) : null}
 
+      {ledger.recovery ? (
+        <RecoveryBanner
+          snapshot={ledger.recovery}
+          onRestore={handleRestoreSnapshot}
+          onDismiss={ledger.dismissRecovery}
+        />
+      ) : null}
+
+      {safety.nudge ? (
+        <ExportNudge
+          nudge={safety.nudge}
+          onExport={handleExport}
+          onDismiss={safety.dismissNudge}
+        />
+      ) : null}
+
       <LedgerSummary stats={ledger.stats} quote={market.quote} status={market.status} />
 
       <PriceTicker
@@ -192,10 +227,13 @@ export const LedgerPage = () => {
         />
       </section>
 
-      <footer className="border-border text-muted-foreground mt-4 flex flex-col gap-2 border-t py-6 text-xs sm:flex-row sm:items-center sm:justify-between">
-        <p>Stored locally in this browser. Export a backup to move it.</p>
-        <p className="font-mono text-[10px] tracking-wide uppercase">Arurem · v{__APP_VERSION__}</p>
-      </footer>
+      <LedgerFooter
+        version={__APP_VERSION__}
+        entryCount={ledger.purchases.length}
+        persistence={safety.persistence}
+        lastExportedAt={safety.lastExportedAt}
+        lastSnapshotAt={safety.lastSnapshotAt}
+      />
 
       <EntrySheet
         open={sheetOpen}

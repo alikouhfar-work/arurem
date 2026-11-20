@@ -31,6 +31,9 @@ arurem/
 │   │   │       ├── purchase.ts        # behaviour: create, applyDraft, fineGoldGrams
 │   │   │       ├── selectors.ts       # computeStats, filterPurchases, sortPurchases
 │   │   │       ├── storage.ts         # the ONLY module that knows localStorage
+│   │   │       ├── snapshots.ts       # rotating local snapshot ring (external store)
+│   │   │       ├── safetyMeta.ts      # lastExportedAt / nudge dismissal
+│   │   │       ├── exportNudge.ts     # when to ask for a backup, and why
 │   │   │       └── backup.ts          # export / import / validation
 │   │   ├── market/
 │   │   │   └── components/
@@ -44,12 +47,13 @@ arurem/
 │   │   │   └── AppShell.tsx          # page frame, skip link, brand mark
 │   │   ├── hooks/
 │   │   │   ├── useTheme.ts
-│   │   │   ├── useMarketRates.ts      # 30s poll, visibility-gated, stale-preserving
+│   │   │   ├── useMarketRates.ts      # 5m poll, visibility-gated, stale-preserving
 │   │   │   └── useValueFlash.ts       # trend direction + animation nonce
 │   │   ├── lib/
 │   │   │   ├── format.ts              # Intl number/date formatting
 │   │   │   ├── money.ts               # USD/toman formatting, locale separation
 │   │   │   ├── spotFeed.ts            # the only module that knows a price provider
+│   │   │   ├── storagePersistence.ts  # navigator.storage.persist() wrapper
 │   │   │   ├── valuation.ts           # grams → money, trend detection
 │   │   │   ├── theme.ts               # resolveTheme, storage key
 │   │   │   └── utils.ts               # cn()
@@ -144,15 +148,41 @@ components                 render
 ```
                  ┌───────────────┐
   UI event  ───→ │    reducer    │ ──→ new state ──→ useMemo selectors
- (create/update  │  (pure, 7     │                     ├ computeStats
+ (create/update  │  (pure, 8     │                     ├ computeStats
   /delete/undo/  │   actions)    │                     └ filter → sort
-  import)        └───────┬───────┘
-                         │
-                         ↓  effect (skips first run, skips identical payload)
+  /import/       └───────┬───────┘
+  dismiss-recovery)      │
+                         │ effect (skips first run, skips identical payload)
                   model/storage.ts
                          ↓
                     localStorage
+                         ↓
+                  model/snapshots.ts ──→ arurem.snapshots.v1 (ring of 5)
 ```
+
+### Data safety (adjacent to the ledger, never inside it)
+
+```
+useDataSafety(purchases)                  observes only
+   ├─ storagePersistence.ts → navigator.storage.persist()  (once, non-empty)
+   ├─ snapshots.ts          → captureSnapshot on every commit
+   │                           · 10-minute floor, identical payloads skipped
+   │                           · an external store, so the UI subscribes
+   │                             via useSyncExternalStore rather than mirroring
+   ├─ safetyMeta.ts         → arurem.safety.v1 (lastExportedAt, dismissal)
+   └─ exportNudge.ts        → pure decision: never-exported / overdue / silent
+        ↓
+   ExportNudge · RecoveryBanner · LedgerFooter
+
+loadPurchases()
+   └─ unreadable payload? → recovery: readLatestSnapshot()
+        ↓ never applied automatically — RecoveryBanner asks first
+```
+
+Three separate keys, deliberately. `arurem.ledger.v2` is the user's data,
+`arurem.snapshots.v1` is its history, and `arurem.safety.v1` is bookkeeping about
+the user's backup habits. A corrupt ledger cannot take the snapshots with it, and
+a failed bookkeeping write cannot block an export.
 
 ### Market data (separate from ledger state)
 
@@ -163,7 +193,7 @@ after the next reload.
 
 ```
 useMarketRates (one instance, mounted in LedgerPage)
-   ├─ 30s interval, paused when document.visibilityState !== 'visible'
+   ├─ 5-minute interval, paused when document.visibilityState !== 'visible'
    ├─ fetchMarketLegs()  ← spotFeed.ts, the only provider-aware module
    │     USD spot ─┐
    │     IRT karats ┴─ parallel, independent failure
@@ -199,7 +229,7 @@ defaults) around a hook that is 90 lines and fully tested.
 
 ## 5. Testing
 
-112 tests / 13 files, `vitest` + Testing Library + jsdom.
+184 tests / 18 files, `vitest` + Testing Library + jsdom.
 
 | File | What it protects |
 |---|---|
@@ -214,6 +244,11 @@ defaults) around a hook that is 90 lines and fully tested.
 | `money.test.ts` | USD cents vs toman whole numbers, Latin digits in fa-IR, em dash instead of NaN |
 | `LedgerToolbar.test.tsx` | Geometry contract: every control resolves the *same* class tokens; accessible names; aria-pressed |
 | `LedgerPageValuation.test.tsx` | Live valuation end to end with `fetch` stubbed: both currencies, fine-vs-gross, stale retention, no NaN, retry |
+| `snapshots.test.ts` | Ring rotation at the retention limit, interval floor, duplicate suppression, corrupt-ring survival, write failure never throws |
+| `exportNudge.test.ts` | Threshold, interval, dismissal expiry, unparseable stamps treated as overdue, empty ledger never nudged |
+| `safetyMeta.test.ts` | Round-trip, corrupt JSON, invalid stamps, failed write swallowed |
+| `storagePersistence.test.ts` | granted / denied / unsupported / absent, on both `persist()` and `persisted()` |
+| `LedgerPageSafety.test.tsx` | The nudge appearing, dismissing, and clearing on export; a corrupt payload offering — and restoring from — a snapshot; truthful footer; **no network call in any of it** |
 
 The integration tests are regression locks: they fail if the old behaviour
 returns. The `updatedAt` edit test would have caught the blocker before release.
@@ -244,6 +279,14 @@ tokens replaced per-component utility strings that were being emitted repeatedly
 
 - **No error boundary.** A render error still white-screens. `AppShell` is the
   natural place for one.
+- **Snapshots share an origin with the ledger.** The ring protects against a bad
+  write, a quota truncation, and a corrupt serialisation — not against clearing
+  site data or losing the device. Nothing browser-local can. That residual risk is
+  precisely what the export nudge exists to reduce, and what opt-in encrypted
+  backup (F12/F15) would remove.
+- **No install prompt.** `navigator.storage.persist()` is requested, but the app
+  still never invites the user to install it — the single highest-leverage
+  retention action available. F5's second half.
 - **22K and Bullion are derived, not quoted.** Tehran publishes 18K and 24K per
   gram; the other purities are scaled from 24K by fineness. The relationship
   matches the market's own 18K/24K pair to within a few hundred toman per gram,

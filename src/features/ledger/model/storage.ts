@@ -1,4 +1,6 @@
+import { readLatestSnapshot } from './snapshots';
 import type { Purchase } from '@/types/purchase';
+import type { BackupSnapshot } from '@/types/persistence';
 import type { LoadResult, StorageEnvelope } from '@/types/storage';
 
 const STORAGE_KEY = 'arurem.ledger.v2';
@@ -56,18 +58,30 @@ const migrateRow = (raw: unknown): Purchase | null => {
   };
 };
 
-const parseRows = (raw: unknown): Purchase[] => {
-  const rows = Array.isArray(raw)
+const rawRows = (raw: unknown): unknown[] =>
+  Array.isArray(raw)
     ? raw
     : isRecord(raw) && Array.isArray(raw.purchases)
       ? raw.purchases
       : [];
-  return rows.map(migrateRow).filter((row): row is Purchase => row !== null);
-};
+
+const parseRows = (raw: unknown): Purchase[] =>
+  rawRows(raw).map(migrateRow).filter((row): row is Purchase => row !== null);
+
+/**
+ * A payload that had rows but yielded none is as unreadable as broken JSON —
+ * the user does not care which. Both paths offer the newest snapshot.
+ */
+const offerRecovery = (): BackupSnapshot | null => readLatestSnapshot();
 
 export const loadPurchases = (): LoadResult => {
   if (typeof window === 'undefined') {
-    return { purchases: [], migrated: false, recoveredFromCorruption: false };
+    return {
+      purchases: [],
+      migrated: false,
+      recoveredFromCorruption: false,
+      recovery: null,
+    };
   }
 
   let recoveredFromCorruption = false;
@@ -77,10 +91,14 @@ export const loadPurchases = (): LoadResult => {
     if (current) {
       const parsed: unknown = JSON.parse(current);
       const envelope = isRecord(parsed) ? (parsed as Partial<StorageEnvelope>) : {};
+      const purchases = parseRows(envelope.purchases);
+      const lostEverything = purchases.length === 0 && rawRows(envelope.purchases).length > 0;
+
       return {
-        purchases: parseRows(envelope.purchases),
+        purchases,
         migrated: false,
-        recoveredFromCorruption: false,
+        recoveredFromCorruption: lostEverything,
+        recovery: lostEverything ? offerRecovery() : null,
       };
     }
   } catch {
@@ -89,14 +107,31 @@ export const loadPurchases = (): LoadResult => {
 
   try {
     const legacy = window.localStorage.getItem(LEGACY_KEY);
-    if (!legacy) return { purchases: [], migrated: false, recoveredFromCorruption };
+    if (!legacy) {
+      return {
+        purchases: [],
+        migrated: false,
+        recoveredFromCorruption,
+        recovery: recoveredFromCorruption ? offerRecovery() : null,
+      };
+    }
 
     const parsed: unknown = JSON.parse(legacy);
     const purchases = parseRows(parsed);
     if (purchases.length > 0) persistPurchases(purchases);
-    return { purchases, migrated: purchases.length > 0, recoveredFromCorruption };
+    return {
+      purchases,
+      migrated: purchases.length > 0,
+      recoveredFromCorruption,
+      recovery: recoveredFromCorruption ? offerRecovery() : null,
+    };
   } catch {
-    return { purchases: [], migrated: false, recoveredFromCorruption: true };
+    return {
+      purchases: [],
+      migrated: false,
+      recoveredFromCorruption: true,
+      recovery: offerRecovery(),
+    };
   }
 };
 

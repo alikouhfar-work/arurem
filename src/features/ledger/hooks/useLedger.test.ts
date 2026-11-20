@@ -23,7 +23,7 @@ const state = (purchases: Purchase[] = []) => ({
   purchases,
   status: 'idle' as const,
   error: null,
-  migrated: false,
+  recovery: null,
 });
 
 describe('ledgerReducer', () => {
@@ -78,5 +78,38 @@ describe('ledgerReducer', () => {
     expect(next.status).toBe('error');
     expect(next.error).toBe('quota');
     expect(next.purchases).toHaveLength(1);
+  });
+
+  it('clears a pending recovery on dismiss', () => {
+    const withRecovery = {
+      ...state([]),
+      recovery: {
+        id: 'snap-1',
+        savedAt: '2026-11-01T00:00:00.000Z',
+        entryCount: 1,
+        purchases: [purchase('a')],
+      },
+    };
+    expect(ledgerReducer(withRecovery, { type: 'dismiss-recovery' }).recovery).toBeNull();
+  });
+
+  it('is a no-op when dismissing with no recovery pending', () => {
+    const current = state([purchase('a')]);
+    expect(ledgerReducer(current, { type: 'dismiss-recovery' })).toBe(current);
+  });
+
+  it('clears a pending recovery when an import replaces the ledger', () => {
+    const withRecovery = {
+      ...state([]),
+      recovery: {
+        id: 'snap-1',
+        savedAt: '2026-11-01T00:00:00.000Z',
+        entryCount: 1,
+        purchases: [purchase('a')],
+      },
+    };
+    const next = ledgerReducer(withRecovery, { type: 'replace-all', purchases: [purchase('x')] });
+    expect(next.recovery).toBeNull();
+    expect(next.purchases.map((p) => p.id)).toEqual(['x']);
   });
 });

@@ -1,4 +1,5 @@
 import type { Purchase, PurchaseDraft } from './purchase';
+import type { BackupSnapshot } from './persistence';
 
 /** Ledger aggregate types and the store's state-machine contracts. */
 
@@ -35,6 +36,8 @@ export type LedgerState = {
   purchases: Purchase[];
   status: LedgerStatus;
   error: string | null;
+  /** A snapshot offered after the live payload failed to load. */
+  recovery: BackupSnapshot | null;
 };
 
 export type LedgerAction =
@@ -44,6 +47,7 @@ export type LedgerAction =
   | { type: 'restore'; purchase: Purchase; index: number }
   | { type: 'replace-all'; purchases: Purchase[] }
   | { type: 'persist-failed'; message: string }
+  | { type: 'dismiss-recovery' }
   | { type: 'persist-ok' };
 
 export type UseLedgerViewOptions = {
