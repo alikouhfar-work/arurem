@@ -32,15 +32,22 @@ clearing browser data will delete your ledger.
 ### The one network call
 
 Prices come from two public, keyless endpoints: spot gold in USD, and Tehran's
-own per-gram gold quotes in toman. **Nothing about you or your ledger is ever
-sent** — the requests carry no payload, no identifiers, and no amount of gold.
-They are plain GETs for a public price, and the app works without them: your data
-is local and complete regardless.
+own per-gram quotes for **18K and 24K** in toman. **Nothing about you or your
+ledger is ever sent** — the requests carry no payload, no identifiers, and no
+amount of gold. They are plain GETs for a public price, and the app works without
+them: your data is local and complete regardless.
 
 The two currencies are priced independently on purpose. Iranian gold carries an
 import premium over spot that moves on its own, so converting one figure through
 an exchange rate would produce a number matching neither market. USD is spot;
-toman is the bazaar's actual quote.
+toman is the bazaar's actual quote, read from tgju's `geram18` and `geram24`
+indicators — the same figures tgju.org prints.
+
+**Toman vs rial.** tgju.org publishes **rial**; Arurem works in **toman**
+(1/10 of a rial), which is how Iranians actually discuss prices. Every toman
+figure is therefore paired with its rial value on screen, so you can check it
+against tgju.org directly — `32,381,900 IRT/g` sits directly above
+`323,819,000 ریال`.
 
 If you would rather make no requests at all, the ledger still records, filters,
 sorts, and exports exactly as before — the valuation simply shows a dash.

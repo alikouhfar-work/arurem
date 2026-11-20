@@ -351,6 +351,13 @@ Toman renders with **no decimals** (it has no minor unit in practice, the rial
 being 1/10) and `fa-IR-u-nu-latn` — locale-correct grouping, Latin digits, so a
 toman column stays readable next to a USD one.
 
+**Every toman figure is paired with its rial value.** tgju.org prints rial, so a
+side-by-side comparison showed 242,867,000 against our 24,286,700 and looked like
+a ten-times error rather than a unit choice. The rial figure now renders directly
+under each toman one (`323,819,000 ریال` under `32,381,900 IRT/g`), which makes the
+number checkable against the source in one glance instead of asking the user to
+trust a silent division by ten.
+
 Resilience, in order of what the user sees:
 
 | Condition | Behaviour |
