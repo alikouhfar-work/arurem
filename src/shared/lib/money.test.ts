@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatToman, formatTomanCompact, formatUsd, formatUsdWhole } from './money';
+import { formatRial, formatToman, formatTomanCompact, formatUsd, formatUsdWhole } from './money';
 
 /**
  * Currency formatting is a correctness surface, not a cosmetic one: a gold
@@ -54,5 +54,24 @@ describe('formatTomanCompact', () => {
 
   it('leaves small figures alone', () => {
     expect(formatTomanCompact(1240)).toBe('1,240');
+  });
+});
+
+describe('formatRial', () => {
+  it('converts toman to rial exactly ten times over', () => {
+    // tgju.org publishes in rial; the app works in toman. The pairing is what
+    // lets a user reconcile our figure against the source at a glance.
+    expect(formatRial(24_286_700)).toBe('242,867,000');
+    expect(formatRial(32_381_900)).toBe('323,819,000');
+  });
+
+  it('handles the real 18K and 24K quotes without rounding drift', () => {
+    // The exact numbers tgju served during development.
+    expect(formatRial(24_286_700)).not.toBe('242,867,001');
+    expect(formatRial(32_381_900)).not.toBe('323,819,001');
+  });
+
+  it('renders an em dash for missing data', () => {
+    expect(formatRial(null)).toBe('—');
   });
 });

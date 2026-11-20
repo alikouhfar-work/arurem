@@ -1,6 +1,6 @@
 import { Card } from '@/shared/ui/Card';
 import { formatGrams, formatPercent } from '@/shared/lib/format';
-import { formatToman, formatUsdWhole } from '@/shared/lib/money';
+import { formatRial, formatToman, formatUsdWhole } from '@/shared/lib/money';
 import { equivalentGrams, valuateHoldings } from '@/shared/lib/valuation';
 import { useValueFlash } from '@/shared/hooks/useValueFlash';
 import {
