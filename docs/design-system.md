@@ -117,7 +117,7 @@ identically to `resolveTheme()`, sets `color-scheme`, and cannot throw.
 
 | Role | Family | Size | Notes |
 |---|---|---|---|
-| Display (fine gold total) | Outfit | `clamp(2.75rem, 7.5vw, 5.75rem)` | One fluid token replaces the old `text-6xl xl:text-8xl` cliff |
+| Display (18K-equivalent total) | Outfit | `clamp(2.75rem, 7.5vw, 5.75rem)` | One fluid token replaces the old `text-6xl xl:text-8xl` cliff |
 | Section heading | Outfit | 20–24 px | |
 | Body | Inter Variable | 16 px / 1.5 | Down from 18 px on mobile — 18 px body pushed line lengths past 90ch |
 | Secondary | Inter | 12–13 px | Only at `ink-500`+ |
@@ -234,6 +234,29 @@ Toasts are bottom-centre on mobile (thumb-adjacent), bottom-centre on desktop.
 | After, 1440 px light | **0** |
 | After, 1440 px dark | **0** |
 | After, 390 px light | **0** |
+| v2.2.0, 1440 px light | **0** (24 passes) |
+| v2.2.0, 390 px dark | **0** (26 passes) |
+
+### The gradient blind spot
+
+On v2.2.0 axe reported 0 violations but **11 `incomplete` nodes** — all labelled
+*"background color could not be determined due to a background gradient"*. Those
+were the new valuation figures on the jade hero card, the most important numbers
+in the product, and axe simply cannot measure them.
+
+Hand-computing the contrast against both gradient stops caught two real
+regressions the automated pass missed:
+
+| Element | Was | Ratio (worst stop) | Now | Ratio |
+|---|---|---|---|---|
+| Per-gram meta line (11 px) | `white/45` | **3.25:1 ✗** | `white/70` | 5.56:1 ✓ |
+| Currency unit `USD`/`IRT` (11 px) | `white/55` | **4.09:1 ✗** | `white/70` | 5.56:1 ✓ |
+
+Both were under the 4.5:1 floor for small text. Every pair on the card now
+passes at the lighter gradient stop (`jade-700 #0f4f3d`), which is the worst
+case; over `jade-900` the ratios are higher. Note that `text-white/60` at
+4.55:1 only just clears AA — it is not a value to reuse for smaller or lighter
+contexts.
 
 Also verified by hand:
 
@@ -255,7 +278,105 @@ action bar.
 
 ---
 
-## 6. What I deliberately did not do
+## 6. Live pricing and control geometry (v2.2.0)
+
+### Control tokens
+
+The toolbar previously mixed a 44 px search field with 36 px select triggers and
+a 36 px segment inside a 44 px track, with radii of 33 / 33 / 12 / 9 px. Measured
+in the browser, not inferred from classes. The fix is five tokens in
+`tokens.css`, consumed by every control in a row:
+
+| Token | Value | Consumed by |
+|---|---|---|
+| `--control-height` | `2.75rem` (44 px) | search field, select triggers, switch track |
+| `--control-radius` | `var(--radius)` (12 px) | all of the above |
+| `--control-gutter` | `0.75rem` | field padding, select padding |
+| `--control-track-padding` | `3px` | switch track |
+| `--control-radius-inner` | `calc(radius − padding − border)` → 8 px | switch segments |
+
+`--control-segment` (`calc(height − 2·padding − 2·border)` → 36 px) sizes the
+segments so they stay concentric rather than merely similar. Verified at
+1440 / 768 / 390 / 320 px: all four controls report height 44, radius 12 px,
+border 1 px, one shared baseline. At 125% root font all four grow to 55 px
+together, so text scaling cannot desynchronise them.
+
+The switch track carries a real `border` rather than a transparent one, so its
+box edge lines up with the fields beside it. Layout is a grid, not wrapping flex:
+`minmax(0,1fr) auto` at every width, with the two selects on their own 2-up row
+below `sm` via a `sm:contents` wrapper. Controls change rows; they never change
+size. No fixed pixel widths on the selects, so a longer label or larger user font
+cannot clip.
+
+### Measurement, not estimation
+
+- Every control's geometry was read back with `getBoundingClientRect()` and
+  `getComputedStyle()` at four viewports, before and after.
+- `scrollWidth === clientWidth` at 320 px (the baseline overflowed to 851 px).
+- CLS measured with a `layout-shift` `PerformanceObserver`: **0**.
+- A separate reflow was caught and fixed that CLS did not attribute: the hero
+  card grew 17.7 px on the first quote, pushing the toolbar down. The per-gram
+  price line is now always rendered with matching text metrics and toggled with
+  `invisible`, so the reserved row is exactly the height of the real one.
+  Verified stable across pre-quote → live → refreshed.
+
+### Live dual-currency valuation
+
+Two keyless, CORS-enabled feeds, fetched in parallel, failing independently:
+
+| Leg | Provider | Unit | Cadence |
+|---|---|---|---|
+| USD | `api.gold-api.com/price/XAU` | USD / troy ounce of fine gold | ~6 s cache |
+| IRT | `api.tgju.org/v1/widget/tmp?keys=geram18,geram24` | toman / **gram, per karat** | live |
+
+**The two currencies are not linked by an exchange rate, deliberately.** Iranian
+gold trades as its own market: it carries an import premium that moves
+independently of spot, several percent on a normal day. Converting the USD figure
+through the dollar rate produces a number that matches neither market — it is
+wrong by however much the premium happens to be. So the toman side is read from
+Tehran's own published per-gram quote, and the USD side from spot, and neither is
+derived from the other.
+
+Karat handling mirrors tgju exactly: `geram24` and `geram18` are published per
+gram and read directly; **22K and Bullion have no published quote** and are
+derived from 24K by fineness. That is not a guess at the market — it is the
+relationship tgju's own 18K/24K pair already obeys to within rounding (0.75 ×
+32,381,900 = 2,428,642,500 against a published 2,428,670,000).
+
+Each holding slice is priced at its **own karat's** quote. Blending a single
+per-gram rate first and multiplying afterwards gets the total wrong even though
+every intermediate number looks plausible.
+
+Toman renders with **no decimals** (it has no minor unit in practice, the rial
+being 1/10) and `fa-IR-u-nu-latn` — locale-correct grouping, Latin digits, so a
+toman column stays readable next to a USD one.
+
+Resilience, in order of what the user sees:
+
+| Condition | Behaviour |
+|---|---|
+| One leg fails | The other still renders; the failed one shows an em dash |
+| Both legs fail, quote cached | Full valuation stays, labelled **Stale · as of \<date\>** |
+| Both legs fail, nothing cached | Em dashes, "No market data", Retry control |
+| Tab hidden | Polling stops; returning forces an immediate fetch |
+| Quote unchanged | No commit, no re-render (field-by-field compare) |
+
+Failures never blank a number that was previously correct, and never render
+`NaN` — both are asserted in tests.
+
+### Trend flash
+
+A 900 ms background tint that decays to transparent, so the text colour never
+changes and no contrast pair is re-verified per state. Replayed via a changing
+React key rather than class toggling, because a second consecutive tick keeps
+the same direction class and would animate only once. Direction is also carried
+by an arrow icon and the numeric change, never by colour alone. Suppressed under
+`prefers-reduced-motion` by the existing global rule. Verified firing `flash-up`
+and `flash-down` in the browser on a forced price move.
+
+---
+
+## 7. What I deliberately did not do
 
 - **No gradients as decoration.** The one gradient is the primary metric card,
   where it separates "this is the headline number" from the secondary cards.
@@ -268,14 +389,20 @@ action bar.
 
 ---
 
-## 7. Open questions for you
+## 8. Open questions for you
 
-1. **Fine gold vs gross weight.** The summary now leads with purity-adjusted fine
-   gold (the defensible number) and shows gross underneath. If you think of your
-   holdings in gross grams, say so and I will swap the hierarchy — one line in
-   `ledger-summary.tsx`.
-2. **Currency.** There is no price or value field anywhere. For a gold ledger
-   that is the biggest functional gap (see the product report). Do you want
-   purchase price per gram, a manual spot price, or neither?
+1. ~~**Fine gold vs gross weight.**~~ **Answered** — the hero now leads with the
+   holding restated in **18K**, the karat the Iranian market quotes in, and names
+   the fine (24K) figure in the description. Gross weight stays underneath.
+2. ~~**Currency.**~~ **Answered in v2.2.0** — live pricing in both IRT and USD.
+   IRT is Tehran's own per-karat gram quote; USD is spot. They are not linked by
+   an exchange rate. What remains open is the *cost basis* question: the app now
+   shows what your gold is **worth**, but not what you **paid**, so it cannot show
+   gain or loss. That needs a price-per-gram field on each acquisition (see
+   `docs/product-gap-analysis.md` R3).
 3. **Dark mode default.** Currently follows the OS. For a "vault" product, a
    dark-first default may fit the brand better.
+4. ~~**Price staleness tolerance.**~~ **Answered.** The IRT leg is no longer a
+   daily close: the widget route updates intraday, so both legs carry a same-day
+   stamp and the toman figure is live. The summary-table route remains as a
+   per-karat fallback and is the only path that returns a date-only figure.

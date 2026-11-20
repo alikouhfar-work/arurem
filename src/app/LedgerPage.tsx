@@ -5,9 +5,11 @@ import { LedgerEntryList } from '@/features/ledger/components/LedgerEntryList';
 import { LedgerHeader } from '@/features/ledger/components/LedgerHeader';
 import { LedgerSummary } from '@/features/summary/components/LedgerSummary';
 import { LedgerToolbar } from '@/features/ledger/components/LedgerToolbar';
+import { PriceTicker } from '@/features/market/components/PriceTicker';
 import { EntrySheet } from '@/features/ledger/components/EntrySheet';
 import { DeleteDialog } from '@/features/ledger/components/DeleteDialog';
 import { useLedger, useLedgerView } from '@/features/ledger/hooks/useLedger';
+import { useMarketRates } from '@/shared/hooks/useMarketRates';
 import { downloadExport, parseImport, readFileAsText } from '@/features/ledger/model/backup';
 import type { Purchase, PurchaseDraft } from '@/types/purchase';
 import type { PurityFilter, SortKey, ViewMode } from '@/types/ledger';
@@ -16,8 +18,11 @@ import type { PurityFilter, SortKey, ViewMode } from '@/types/ledger';
  * Ledger page — the only component that composes features. All state lives in
  * `useLedger`; this file is orchestration and layout, nothing else.
  */
-export function LedgerPage() {
+export const LedgerPage = () => {
   const ledger = useLedger();
+  // One subscription for the whole page. Mounting the hook per card would open
+  // an interval for each and let two cards show different spot prices.
+  const market = useMarketRates();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('acquired-desc');
@@ -142,7 +147,14 @@ export function LedgerPage() {
         </div>
       ) : null}
 
-      <LedgerSummary stats={ledger.stats} />
+      <LedgerSummary stats={ledger.stats} quote={market.quote} status={market.status} />
+
+      <PriceTicker
+        quote={market.quote}
+        status={market.status}
+        isRefreshing={market.isRefreshing}
+        onRefresh={market.refresh}
+      />
 
       <section
         id="ledger"

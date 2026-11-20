@@ -6,26 +6,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/Select';
-import { LayoutGrid, List, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { PURITY_VALUES } from '../model/purchase.schema';
-import { cn } from '@/shared/lib/utils';
+import { SORT_OPTIONS } from '@/constants/toolbar';
+import { ViewSwitch } from './ViewSwitch';
 import type { LedgerToolbarProps } from '@/types/components';
-import type { PurityFilter, SortKey, ViewMode } from '@/types/ledger';
+import type { PurityFilter, SortKey } from '@/types/ledger';
 
-const SORT_LABELS: Record<SortKey, string> = {
-  'acquired-desc': 'Newest first',
-  'acquired-asc': 'Oldest first',
-  'weight-desc': 'Heaviest first',
-  'vendor-asc': 'Vendor A–Z',
-};
-
-const VIEW_OPTIONS: { value: ViewMode; label: string; Icon: typeof List }[] = [
-  { value: 'list', label: 'List view', Icon: List },
-  { value: 'grid', label: 'Grid view', Icon: LayoutGrid },
-];
-
-export function LedgerToolbar({
+/**
+ * Search, filters, sort, and the view switch.
+ *
+ * The alignment rule this file exists to satisfy:
+ *
+ *  1. Every control in the row is `--control-height` tall and `rounded-control`
+ *     round. Nothing here sets a height or a radius of its own — that is what
+ *     produced a 44px search field beside 36px selects.
+ *  2. The select triggers carry a real border, not a transparent one, so their
+ *     box edges line up with the search field's instead of floating inward.
+ *  3. The view switch is a track whose inner radius is derived from the control
+ *     radius minus its own padding, so the segments sit concentric with the
+ *     fields next to them rather than at an unrelated 9px.
+ *  4. Layout is a grid, not wrapping flex. `grid-cols-[minmax(0,1fr)_auto]` on
+ *     the first row keeps search and the switch on one line at every width,
+ *     and the two selects get their own full-width row below `sm`. That is what
+ *     prevents the reflow jump the flex-wrap version had: controls change rows,
+ *     but never change size.
+ *  5. No fixed pixel widths on the selects. They size to content up to a cap, so
+ *     a longer translation or a larger user font does not clip the label.
+ */
+export const LedgerToolbar = ({
   searchQuery,
   onSearchChange,
   sortKey,
@@ -38,7 +48,7 @@ export function LedgerToolbar({
   totalCount,
   isFiltered,
   onClearFilters,
-}: LedgerToolbarProps) {
+}: LedgerToolbarProps) => {
   const searchRef = useRef<HTMLInputElement>(null);
 
   // "/" focuses search — the one keyboard affordance power users expect in a
@@ -61,13 +71,13 @@ export function LedgerToolbar({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+        <div className="relative min-w-0">
           <label htmlFor="ledger-search" className="sr-only">
             Search entries
           </label>
           <Search
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-(--control-gutter) size-4 -translate-y-1/2"
             aria-hidden="true"
           />
           <Input
@@ -84,7 +94,10 @@ export function LedgerToolbar({
                 onSearchChange('');
               }
             }}
-            className="h-11 pl-10 [&::-webkit-search-cancel-button]:appearance-none"
+            // The icon needs room the shared gutter does not provide; the right
+            // side reserves space for the clear button so text never runs under
+            // it at any width.
+            className="pr-10 pl-[calc(var(--control-gutter)+1.25rem)] [&::-webkit-search-cancel-button]:appearance-none"
           />
           {searchQuery ? (
             <button
@@ -93,7 +106,7 @@ export function LedgerToolbar({
                 onSearchChange('');
                 searchRef.current?.focus();
               }}
-              className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring absolute top-1/2 right-2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none"
             >
               <X className="size-3.5" aria-hidden="true" />
               <span className="sr-only">Clear search</span>
@@ -101,15 +114,20 @@ export function LedgerToolbar({
           ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Mobile: the switch shares the search row, which keeps the toolbar two
+            rows tall instead of three. From sm up it takes its ordered slot. */}
+        <ViewSwitch viewMode={viewMode} onViewModeChange={onViewModeChange} className="col-start-2" />
+
+        {/* `sm:contents` dissolves this wrapper so the two selects become
+            direct cells of the single 4-up row at sm+, while on mobile they get
+            a clean 2-up row of their own. Without it the grid would place them
+            one-per-column and squeeze the sort trigger to the switch's width. */}
+        <div className="col-span-2 grid grid-cols-2 gap-2 sm:contents">
           <Select
             value={purityFilter}
             onValueChange={(value) => onPurityFilterChange(value as PurityFilter)}
           >
-            <SelectTrigger
-              className="h-11 min-w-0 flex-1 basis-[6.5rem] gap-1.5 sm:w-[8.5rem] sm:flex-none"
-              aria-label="Filter by purity"
-            >
+            <SelectTrigger className="w-full min-w-0 sm:w-auto sm:min-w-[8rem]" aria-label="Filter by purity">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -123,44 +141,17 @@ export function LedgerToolbar({
           </Select>
 
           <Select value={sortKey} onValueChange={(value) => onSortChange(value as SortKey)}>
-            <SelectTrigger
-              className="h-11 min-w-0 flex-1 basis-[6.5rem] gap-1.5 sm:w-[9.5rem] sm:flex-none"
-              aria-label="Sort entries"
-            >
+            <SelectTrigger className="w-full min-w-0 sm:w-auto sm:min-w-[9rem]" aria-label="Sort entries">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
-                <SelectItem key={key} value={key}>
-                  {SORT_LABELS[key]}
+              {SORT_OPTIONS.map(({ value, label }) => (
+                <SelectItem key={value} value={value}>
+                  {label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-
-          <div
-            role="group"
-            aria-label="Layout"
-            className="bg-muted flex h-11 shrink-0 items-center gap-0.5 rounded-lg p-1"
-          >
-            {VIEW_OPTIONS.map(({ value, label, Icon }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => onViewModeChange(value)}
-                aria-pressed={viewMode === value}
-                className={cn(
-                  'focus-visible:ring-ring flex size-9 items-center justify-center rounded-md transition-all focus-visible:ring-2 focus-visible:outline-none',
-                  viewMode === value
-                    ? 'bg-card text-ink-900 dark:text-ink-50 shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon className="size-4" aria-hidden="true" />
-                <span className="sr-only">{label}</span>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -191,4 +182,4 @@ export function LedgerToolbar({
       </div>
     </div>
   );
-}
+};

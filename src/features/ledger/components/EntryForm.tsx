@@ -140,7 +140,9 @@ export function EntryForm({ purchase, submitLabel, onSubmit, onCancel }: EntryFo
                   type="button"
                   variant="outline"
                   className={cn(
-                    'h-9 w-full justify-start gap-2 px-3 font-normal',
+                    // Same control tokens as the Input and Select beside it, so
+                    // the date field is not a shorter box in the same column.
+                    'h-(--control-height) w-full justify-start gap-2 rounded-control px-(--control-gutter) font-normal',
                     'text-ink-900 dark:text-ink-50',
                   )}
                 >

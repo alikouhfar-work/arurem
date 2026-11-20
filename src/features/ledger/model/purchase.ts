@@ -5,12 +5,7 @@ import type { Purchase, PurchaseDraft, Purity } from '@/types/purchase';
  * no type declarations live here (project convention).
  */
 
-const FINENESS: Record<Purity, number> = {
-  '24K': 0.9999,
-  '22K': 0.9167,
-  '18K': 0.75,
-  Bullion: 0.9999,
-};
+import { FINENESS } from '@/constants/fineness';
 
 export { PURITY_LABELS, PURITY_VALUES, purchaseSchema, purchaseDraftSchema } from './purchase.schema';
 

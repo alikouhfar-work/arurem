@@ -20,6 +20,32 @@
 :root {
   --radius: 0.75rem;
 
+  /* --- control geometry ---------------------------------------------------
+     One height, one radius, one gutter, one border weight for every control
+     that sits in a row: search field, select trigger, view-toggle track.
+
+     These exist because the previous toolbar had a 44px search field, 44px
+     select triggers and a 44px toggle whose *inner* radius disagreed with the
+     field radius by 21px (rounded-lg track against rounded-3xl fields). The
+     numbers below are the whole fix: a control cannot be aligned by eye, only
+     by sharing the token.
+
+     44px is also the touch minimum, so height and accessibility agree.
+     ---------------------------------------------------------------------- */
+  --control-height: 2.75rem;
+  --control-gutter: 0.75rem;
+  --control-border-width: 1px;
+  --control-radius: var(--radius);
+  /* Track padding + border are subtracted so the segment radius stays
+     concentric with the track rather than merely similar to it. */
+  --control-track-padding: 3px;
+  --control-radius-inner: calc(
+    var(--control-radius) - var(--control-track-padding) - var(--control-border-width)
+  );
+  --control-segment: calc(
+    var(--control-height) - (2 * var(--control-track-padding)) - (2 * var(--control-border-width))
+  );
+
   /* --- neutral scale (warm-shifted so it sits with gold, not against it) --- */
   --ink-50: #f7f9f8;
   --ink-100: #eef2f0;
@@ -75,6 +101,12 @@
 
   --destructive: #b42318;
   --success: #067647;
+  /* Trend fills. Faint enough to sit under text without raising its contrast
+     floor; the foreground values are the AA-verified ones from the table. */
+  --trend-up: #067647;
+  --trend-down: #b42318;
+  --trend-up-surface: #e7f5ee;
+  --trend-down-surface: #fdecea;
 
   --border: #e7e1d4;
   --border-strong: var(--ink-400);
@@ -109,6 +141,10 @@
 
   --destructive: #f97066;
   --success: #47cd89;
+  --trend-up: #47cd89;
+  --trend-down: #f97066;
+  --trend-up-surface: #122a20;
+  --trend-down-surface: #2c1715;
 
   --border: #24312c;
   --border-strong: #56655e;

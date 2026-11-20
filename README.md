@@ -2,16 +2,21 @@
 
 **A private, offline-first ledger for physical gold.** Track what you own by
 weight, purity, vendor, and acquisition date — entirely in your browser. No
-account, no server, no telemetry.
+account, no server, no telemetry, and live pricing in USD and Iranian toman.
 
-![Version](https://img.shields.io/badge/version-2.1.0-0a3d2e)
+![Version](https://img.shields.io/badge/version-2.2.0-0a3d2e)
 
 ---
 
 ## What it does
 
-- **Purity-adjusted totals.** Reports fine (24K-equivalent) gold, not just gross
-  grams — because 100 g of 18K is not 100 g of gold.
+- **Purity-adjusted totals, led in 18K.** The headline weight is your holding
+  restated in 18K — the karat Iranian buyers and sellers quote in — with the fine
+  (24K) figure named in the description and gross weight underneath.
+- **Live valuation in two currencies.** Your holding priced in USD and Iranian
+  toman, recomputed as the price moves — USD from spot gold, toman from Tehran's
+  own per-karat gram quotes. Each currency is labelled and formatted
+  independently — toman as whole numbers, USD to the cent.
 - **Per-entry records.** Vendor, gross weight, karat, acquisition date, memo.
 - **Search, filter, sort.** By vendor, memo, karat, or weight; filter by purity;
   sort by date, weight, or vendor.
@@ -23,6 +28,33 @@ account, no server, no telemetry.
 
 Everything lives in `localStorage` on your device. Export a backup regularly —
 clearing browser data will delete your ledger.
+
+### The one network call
+
+Prices come from two public, keyless endpoints: spot gold in USD, and Tehran's
+own per-gram gold quotes in toman. **Nothing about you or your ledger is ever
+sent** — the requests carry no payload, no identifiers, and no amount of gold.
+They are plain GETs for a public price, and the app works without them: your data
+is local and complete regardless.
+
+The two currencies are priced independently on purpose. Iranian gold carries an
+import premium over spot that moves on its own, so converting one figure through
+an exchange rate would produce a number matching neither market. USD is spot;
+toman is the bazaar's actual quote.
+
+If you would rather make no requests at all, the ledger still records, filters,
+sorts, and exports exactly as before — the valuation simply shows a dash.
+
+Two honest caveats:
+
+- **Offline cold start shows dashes.** The PWA precaches the app, not the quote.
+  With no network at all, the valuation is blank until the first successful fetch.
+  The last price is deliberately *not* saved: a cached number reloaded hours later
+  would look live and be wrong.
+- **22K and Bullion are derived**, not published. Tehran quotes 18K and 24K per
+  gram; the other two purities are scaled from 24K by fineness, which is the same
+  ratio the market's own 18K/24K pair obeys to within rounding. If tgju ever
+  publishes a direct 22K quote, it should be read instead.
 
 ## Stack
 
@@ -109,6 +141,23 @@ These are enforced, not just documented:
 | `docs/audit/` | Before/after screenshots at mobile, tablet, and desktop in both themes |
 
 ## Version history
+
+### v2.2.0
+
+- **Live dual-currency valuation.** Holdings priced in USD and IRT from live
+  feeds, with per-leg staleness labels and a stale-preserving failure mode
+  (a dropped request never blanks a number that was previously right)
+- **18K-led hero weight.** The headline restates the holding in 18K, with the
+  fine (24K) figure named in the description and gross weight underneath
+- **Trend flash.** Green/red tint on a price change, driven by a keyed animation
+  so consecutive same-direction ticks replay; suppressed under reduced motion
+- **Toolbar alignment fixed.** Five control tokens (height, radius, gutter,
+  border, inner radius) replace per-component values — the row previously mixed
+  44px and 36px controls with four different corner radii
+- **Zero layout shift.** Measured with a `layout-shift` observer; the one reflow
+  CLS missed (hero card growing 17.7px on first quote) was found and fixed
+- 112 tests (up from 68), including the feed parsers, the valuation maths, and a
+  geometry contract that fails if a control reintroduces a bespoke height
 
 ### v2.1.0
 

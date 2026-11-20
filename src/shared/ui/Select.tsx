@@ -29,31 +29,45 @@ function SelectValue({
   return <SelectPrimitive.Value data-slot="select-value" {...props} />
 }
 
-function SelectTrigger({
+const SelectTrigger = ({
   className,
-  size = "default",
+  size = 'default',
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
-  size?: "sm" | "default"
-}) {
+  size?: 'sm' | 'default';
+}) => {
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "flex w-fit items-center justify-between gap-1.5 rounded-3xl border border-transparent bg-input/50 px-3 py-2 text-sm whitespace-nowrap transition-[color,box-shadow,background-color] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className
+        'flex w-fit items-center justify-between gap-2 whitespace-nowrap',
+        // Same three tokens as Input: height, radius, gutter. A select sitting
+        // in a row with a search field must be the same box, or the row reads
+        // as two stray controls the moment you look at it.
+        'border-border bg-input text-foreground h-(--control-height) rounded-control border',
+        'px-(--control-gutter) py-0 text-sm',
+        'transition-[color,box-shadow,background-color,border-color] outline-none',
+        'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        'data-placeholder:text-muted-foreground',
+        'aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20',
+        'data-[size=sm]:h-8',
+        '*:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2',
+        'dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40',
+        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className,
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="pointer-events-none size-4 text-muted-foreground" />
+        <ChevronDownIcon className="text-muted-foreground pointer-events-none size-4" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
-  )
-}
+  );
+};
 
 function SelectContent({
   className,

@@ -1,4 +1,4 @@
-import { render as rtlRender, screen, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Toaster } from 'react-hot-toast';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -49,14 +49,17 @@ describe('LedgerPage', () => {
     expect(screen.getByText('100.000')).toBeInTheDocument();
   });
 
-  it('summarises fine gold, not raw weight, on mixed purities', () => {
+  it('leads with the 18K-equivalent weight and reports fine 24K in the description', () => {
     seed([
       row({ id: 'a', sellerName: 'Vault A', weight: 100, purity: '24K' }),
       row({ id: 'b', sellerName: 'Vault B', weight: 100, purity: '18K' }),
     ]);
     renderPage();
-    // 100 * 0.9999 + 100 * 0.75 = 174.990
-    expect(screen.getByText('174.990')).toBeInTheDocument();
+    // Fine gold is 100 * 0.9999 + 100 * 0.75 = 174.990 g, which restated as 18K
+    // grams (÷ 0.75) is 233.320 g — the headline an Iranian seller would quote.
+    expect(screen.getByText('233.320')).toBeInTheDocument();
+    // The 24K figure is not dropped; it moves into the hero description.
+    expect(screen.getByText(/174\.990 g fine \(24K\)/)).toBeInTheDocument();
   });
 
   it('distinguishes "no matches" from "no entries"', async () => {
@@ -98,7 +101,10 @@ describe('LedgerPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Bazaar Exchange' })).toBeInTheDocument();
     });
-    expect(screen.getByText('12.500')).toBeInTheDocument();
+    // Scoped to the entry list: at 18K the hero headline now carries the same
+    // gross figure, so an unscoped lookup would match both.
+    const list = screen.getByRole('list', { name: /ledger entries/i });
+    expect(within(list).getByText('12.500')).toBeInTheDocument();
   });
 
   it('refuses to submit without a vendor and explains why', async () => {
@@ -170,7 +176,13 @@ describe('LedgerPage', () => {
     await user.type(screen.getByLabelText(/^Gross weight/i), '7');
     await user.click(screen.getByRole('button', { name: /^add entry$/i }));
 
-    await waitFor(() => expect(screen.getByText('7.000')).toBeInTheDocument());
+    // The sheet defaults to 18K, where gross and 18K-equivalent grams coincide,
+    // so this is scoped to the list rather than the whole document.
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('list', { name: /ledger entries/i })).getByText('7.000'),
+      ).toBeInTheDocument(),
+    );
     first.unmount();
 
     renderPage();

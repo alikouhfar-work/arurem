@@ -69,12 +69,18 @@ months of records will not come back, and will tell people why.
 This is not a UX nit — it is the number one thing to fix, and it is fixable
 without abandoning the privacy promise (see R1).
 
-### V2 — There is no price, so there is no value. **Critical (product).**
+### V2 — There is no price, so there is no value. **Resolved in v2.2.0.**
 
 A gold ledger that cannot answer "what is this worth?" is a scale, not a ledger.
 The app tracks grams beautifully and value not at all. Every adjacent question —
 *am I up or down, should I sell, is this dealer overcharging me* — is
 unanswerable.
+
+**v2.2.0** now values fine gold live in USD and IRT. What remains open is not
+price but **cost basis**: the app shows what your gold is *worth*, not what you
+*paid*, so realised and unrealised gain are still unanswerable. That is R3 below,
+and it needs a price-per-gram field on each acquisition — a schema change, not a
+feed.
 
 ### V3 — The trust theatre undermines trust. **High.**
 

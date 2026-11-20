@@ -1,8 +1,21 @@
 import type { ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import type { Purchase, PurchaseDraft } from './purchase';
 import type { LedgerStats, PurityFilter, SortKey, ViewMode } from './ledger';
+import type { MarketRatesStatus, MarketQuote } from './market';
 
 /** Prop contracts for the ledger feature's presentational components. */
+
+export type ToolbarSortOption = {
+  value: SortKey;
+  label: string;
+};
+
+export type ToolbarViewOption = {
+  value: ViewMode;
+  label: string;
+  Icon: LucideIcon;
+};
 
 export type LedgerHeaderProps = {
   version: string;
@@ -74,8 +87,27 @@ export type NoResultsStateProps = {
   onClearFilters: () => void;
 };
 
-export type SummaryProps = {
+export type LedgerSummaryProps = {
   stats: LedgerStats;
+  quote: MarketQuote | null;
+  status: MarketRatesStatus;
+};
+
+export type BreakdownDialogProps = {
+  stats: LedgerStats;
+};
+
+export type PriceTickerProps = {
+  quote: MarketQuote | null;
+  status: MarketRatesStatus;
+  isRefreshing: boolean;
+  onRefresh: () => void;
+};
+
+export type ViewSwitchProps = {
+  viewMode: ViewMode;
+  onViewModeChange: (value: ViewMode) => void;
+  className?: string;
 };
 
 export type PurityMixCardProps = {

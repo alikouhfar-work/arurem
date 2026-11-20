@@ -32,6 +32,10 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-success: var(--success);
+  --color-trend-up: var(--trend-up);
+  --color-trend-down: var(--trend-down);
+  --color-trend-up-surface: var(--trend-up-surface);
+  --color-trend-down-surface: var(--trend-down-surface);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
@@ -71,6 +75,12 @@
   --radius-2xl: calc(var(--radius) * 2);
   --radius-3xl: calc(var(--radius) * 2.75);
   --radius-4xl: calc(var(--radius) * 3.5);
+
+  /* Control geometry bridge: `h-(--control-height)`, `rounded-control`, and
+     `rounded-control-inner` are the only three values any control in a toolbar
+     should use. Defined in tokens.css. */
+  --radius-control: var(--control-radius);
+  --radius-control-inner: var(--control-radius-inner);
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-heading: 'Outfit', 'Inter', ui-sans-serif, system-ui, sans-serif;
@@ -140,6 +150,62 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Price flash
+
+   A live number that changes silently is a number the user does not notice.
+   The flash is a background tint that decays to transparent, so the text colour
+   never changes and no contrast pair has to be re-verified for each state.
+
+   Driven by a changing React key, so a repeat tick replays the animation
+   without class toggling. Duration is short enough not to lag a 30s poll and
+   long enough to catch peripheral vision.
+   --------------------------------------------------------------------------- */
+@keyframes flash-up {
+  from {
+    background-color: var(--trend-up-surface);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-down {
+  from {
+    background-color: var(--trend-down-surface);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.flash-up {
+  animation: flash-up 900ms ease-out;
+  border-radius: 0.375rem;
+}
+
+.flash-down {
+  animation: flash-down 900ms ease-out;
+  border-radius: 0.375rem;
+}
+
+/* A one-pixel glow on the tick indicator, so the direction is visible even for
+   users who cannot distinguish the two tints. Never the sole signal. */
+@keyframes tick-up {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tick-in {
+  animation: tick-up 220ms ease-out;
 }
 
 @supports (scrollbar-width: thin) {
