@@ -1,8 +1,10 @@
 import { applyDraft, createPurchase } from '../model/purchase';
-import { loadPurchases, persistPurchases } from '../model/storage';
+import { loadLedger, persistLedger } from '../model/storage';
+import { applyWalletDraft, createWallet as buildWallet } from '../model/wallet';
 import { computeStats, filterPurchases, sortPurchases } from '../model/selectors';
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import type { Purchase, PurchaseDraft } from '@/types/purchase';
+import type { Wallet, WalletDraft } from '@/types/wallet';
 import type { LedgerAction, LedgerState, UseLedgerViewOptions } from '@/types/ledger';
 
 /**
@@ -14,8 +16,8 @@ import type { LedgerAction, LedgerState, UseLedgerViewOptions } from '@/types/le
  */
 
 const initialState = (): LedgerState => {
-  const { purchases, recovery } = loadPurchases();
-  return { purchases, status: 'idle', error: null, recovery };
+  const { purchases, wallets, recovery } = loadLedger();
+  return { purchases, wallets, status: 'idle', error: null, recovery };
 };
 
 export const ledgerReducer = (state: LedgerState, action: LedgerAction): LedgerState => {
@@ -44,8 +46,58 @@ export const ledgerReducer = (state: LedgerState, action: LedgerAction): LedgerS
       return { ...state, purchases: next };
     }
 
+    /**
+     * Deleting a wallet removes the label only. Entries keep every field they
+     * were saved with — they just lose the link, because the wallet is gone.
+     * `entryIds` is carried on the restore action so Undo can put the links
+     * back exactly as they were.
+     */
+    case 'delete-wallet':
+      return {
+        ...state,
+        wallets: state.wallets.filter((wallet) => wallet.id !== action.id),
+        purchases: state.purchases.map((purchase) =>
+          purchase.walletId === action.id ? { ...purchase, walletId: undefined } : purchase,
+        ),
+      };
+
+    case 'add-wallet':
+      return { ...state, wallets: [...state.wallets, action.wallet] };
+
+    case 'update-wallet':
+      return {
+        ...state,
+        wallets: state.wallets.map((wallet) =>
+          wallet.id === action.id ? applyWalletDraft(wallet, action.draft) : wallet,
+        ),
+      };
+
+    case 'restore-wallet': {
+      if (state.wallets.some((wallet) => wallet.id === action.wallet.id)) return state;
+      const next = [...state.wallets];
+      next.splice(Math.min(action.index, next.length), 0, action.wallet);
+
+      const relinked = new Set(action.entryIds);
+      return {
+        ...state,
+        wallets: next,
+        purchases: state.purchases.map((purchase) =>
+          relinked.has(purchase.id) && !purchase.walletId
+            ? { ...purchase, walletId: action.wallet.id }
+            : purchase,
+        ),
+      };
+    }
+
     case 'replace-all':
-      return { ...state, purchases: action.purchases, status: 'idle', error: null, recovery: null };
+      return {
+        ...state,
+        purchases: action.purchases,
+        wallets: action.wallets,
+        status: 'idle',
+        error: null,
+        recovery: null,
+      };
 
     case 'dismiss-recovery':
       return state.recovery === null ? state : { ...state, recovery: null };
@@ -69,7 +121,7 @@ export const useLedger = () => {
   // (localStorage writes are synchronous and show up as long tasks). The first
   // effect run records the just-loaded payload instead of writing it back.
   useEffect(() => {
-    const serialised = JSON.stringify(state.purchases);
+    const serialised = JSON.stringify([state.purchases, state.wallets]);
 
     if (lastSaved.current === null) {
       lastSaved.current = serialised;
@@ -79,7 +131,7 @@ export const useLedger = () => {
     lastSaved.current = serialised;
 
     try {
-      persistPurchases(state.purchases);
+      persistLedger(state.purchases, state.wallets);
       dispatch({ type: 'persist-ok' });
     } catch (error) {
       dispatch({
@@ -87,7 +139,7 @@ export const useLedger = () => {
         message: error instanceof Error ? error.message : 'Could not save your ledger.',
       });
     }
-  }, [state.purchases]);
+  }, [state.purchases, state.wallets]);
 
   const create = useCallback((draft: PurchaseDraft): Purchase => {
     const purchase = createPurchase(draft);
@@ -107,8 +159,28 @@ export const useLedger = () => {
     [],
   );
 
+  const createWallet = useCallback((draft: WalletDraft): Wallet => {
+    const wallet = buildWallet(draft);
+    dispatch({ type: 'add-wallet', wallet });
+    return wallet;
+  }, []);
+
+  const updateWallet = useCallback(
+    (id: string, draft: WalletDraft) => dispatch({ type: 'update-wallet', id, draft }),
+    [],
+  );
+
+  const removeWallet = useCallback((id: string) => dispatch({ type: 'delete-wallet', id }), []);
+
+  const restoreWallet = useCallback(
+    (wallet: Wallet, index: number, entryIds: string[]) =>
+      dispatch({ type: 'restore-wallet', wallet, index, entryIds }),
+    [],
+  );
+
   const replaceAll = useCallback(
-    (purchases: Purchase[]) => dispatch({ type: 'replace-all', purchases }),
+    (purchases: Purchase[], wallets: Wallet[]) =>
+      dispatch({ type: 'replace-all', purchases, wallets }),
     [],
   );
 
@@ -118,6 +190,7 @@ export const useLedger = () => {
 
   return {
     purchases: state.purchases,
+    wallets: state.wallets,
     stats,
     error: state.error,
     recovery: state.recovery,
@@ -125,6 +198,10 @@ export const useLedger = () => {
     update,
     remove,
     restore,
+    createWallet,
+    updateWallet,
+    removeWallet,
+    restoreWallet,
     replaceAll,
     dismissRecovery,
     dismissError: () => dispatch({ type: 'persist-ok' }),
@@ -133,7 +210,7 @@ export const useLedger = () => {
 
 export const useLedgerView = (
   purchases: readonly Purchase[],
-  { searchQuery, sortKey, purityFilter }: UseLedgerViewOptions,
+  { searchQuery, sortKey, purityFilter, walletFilter, wallets }: UseLedgerViewOptions,
 ) => {
   return useMemo(() => {
     const byPurity =
@@ -141,7 +218,15 @@ export const useLedgerView = (
         ? (purchases as Purchase[])
         : purchases.filter((purchase) => purchase.purity === purityFilter);
 
-    const filtered = filterPurchases(byPurity, searchQuery);
+    const known = new Set(wallets.map((wallet) => wallet.id));
+    const byWallet =
+      walletFilter === 'all'
+        ? byPurity
+        : walletFilter === 'none'
+          ? byPurity.filter((purchase) => !purchase.walletId || !known.has(purchase.walletId))
+          : byPurity.filter((purchase) => purchase.walletId === walletFilter);
+
+    const filtered = filterPurchases(byWallet, searchQuery);
     return sortPurchases(filtered, sortKey);
-  }, [purchases, searchQuery, sortKey, purityFilter]);
+  }, [purchases, wallets, searchQuery, sortKey, purityFilter, walletFilter]);
 };

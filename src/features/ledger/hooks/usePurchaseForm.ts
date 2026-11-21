@@ -12,6 +12,7 @@ const toFormValues = (draft: PurchaseDraft): PurchaseFormValues => ({
   purity: draft.purity,
   note: draft.note ?? '',
   acquiredAt: draft.acquiredAt,
+  walletId: draft.walletId,
 });
 
 /**
@@ -47,6 +48,7 @@ export const usePurchaseForm = (
       purity: values.purity,
       note: values.note ?? '',
       acquiredAt: values.acquiredAt,
+      walletId: values.walletId,
     });
   });
 

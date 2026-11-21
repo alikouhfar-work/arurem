@@ -8,6 +8,7 @@ import { Textarea } from '@/shared/ui/Textarea';
 import { formatDate, toDate } from '@/shared/lib/format';
 import { CalendarDays, Check, Loader2 } from 'lucide-react';
 import { PURITY_LABELS, PURITY_VALUES, purityFineness } from '../model/purchase';
+import { NO_WALLET } from '@/constants/wallets';
 import { usePurchaseForm } from '../hooks/usePurchaseForm';
 import { useState } from 'react';
 import { cn } from '@/shared/lib/utils';
@@ -26,7 +27,7 @@ import type { PurchaseDraft } from '@/types/purchase';
  *  - Two columns only from `sm` up; the old `grid-cols-2` at 320px squeezed
  *    "Net weight" and "Purity" into ~120px each.
  */
-export function EntryForm({ purchase, submitLabel, onSubmit, onCancel }: EntryFormProps) {
+export function EntryForm({ purchase, wallets, submitLabel, onSubmit, onCancel }: EntryFormProps) {
   const { form, submit, errors } = usePurchaseForm(purchase, onSubmit);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -42,6 +43,7 @@ export function EntryForm({ purchase, submitLabel, onSubmit, onCancel }: EntryFo
   const weight = watch('weight');
   const acquiredAt = watch('acquiredAt');
   const note = watch('note') ?? '';
+  const walletId = watch('walletId');
 
   const finePreview =
     typeof weight === 'number' && Number.isFinite(weight) && weight > 0
@@ -104,7 +106,9 @@ export function EntryForm({ purchase, submitLabel, onSubmit, onCancel }: EntryFo
           </Field>
 
           <Field invalid={Boolean(errors.purity)}>
-            <FieldLabel required>Purity</FieldLabel>
+            <FieldLabel htmlFor="entry-purity" required>
+              Purity
+            </FieldLabel>
             <FieldControl>
               <Select
                 value={purity}
@@ -115,7 +119,7 @@ export function EntryForm({ purchase, submitLabel, onSubmit, onCancel }: EntryFo
                   })
                 }
               >
-                <SelectTrigger aria-required="true" className="w-full">
+                <SelectTrigger id="entry-purity" className="w-full" aria-required="true">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -173,6 +177,43 @@ export function EntryForm({ purchase, submitLabel, onSubmit, onCancel }: EntryFo
             </Popover>
           </FieldControl>
           <FieldError>{errors.acquiredAt?.message}</FieldError>
+        </Field>
+
+        <Field invalid={Boolean(errors.walletId)}>
+          {/* A Radix Select renders no element for its Root, so the Field
+              context's generated id has nothing to attach to. The label points
+              at the trigger directly instead, which keeps the name real. */}
+          <FieldLabel htmlFor="entry-wallet" hint={wallets.length === 0 ? 'none yet' : undefined}>
+            Wallet
+          </FieldLabel>
+          <FieldControl>
+            <Select
+              value={walletId && walletId.length > 0 ? walletId : NO_WALLET}
+              onValueChange={(value) =>
+                setValue('walletId', value === NO_WALLET ? undefined : value, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                })
+              }
+            >
+              <SelectTrigger id="entry-wallet" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_WALLET}>No wallet</SelectItem>
+                {wallets.map((wallet) => (
+                  <SelectItem key={wallet.id} value={wallet.id}>
+                    {wallet.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FieldControl>
+          {errors.walletId ? (
+            <FieldError>{errors.walletId.message}</FieldError>
+          ) : (
+            <FieldHint>One place per entry. Change it any time.</FieldHint>
+          )}
         </Field>
 
         <Field invalid={Boolean(errors.note)}>

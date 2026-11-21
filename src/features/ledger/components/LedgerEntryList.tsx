@@ -5,16 +5,17 @@ import { AnimatePresence, motion } from 'motion/react';
 import { LedgerEntryCard, LedgerEntryRow } from './LedgerEntry';
 import type { EmptyStateProps, LedgerEntryListProps, NoResultsStateProps } from '@/types/components';
 
-export function LedgerEntryList({
+export const LedgerEntryList = ({
   purchases,
   viewMode,
   hasAnyEntries,
   lastCreatedId,
+  walletNames,
   onEdit,
   onDelete,
   onCreate,
   onClearFilters,
-}: LedgerEntryListProps) {
+}: LedgerEntryListProps) => {
   if (purchases.length === 0) {
     // Two genuinely different empty states. The old build showed "start
     // recording your assets" when a search simply had no matches, which told
@@ -40,6 +41,7 @@ export function LedgerEntryList({
             <LedgerEntryCard
               key={purchase.id}
               purchase={purchase}
+              walletName={purchase.walletId ? (walletNames.get(purchase.walletId) ?? null) : null}
               isNew={purchase.id === lastCreatedId}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -52,6 +54,7 @@ export function LedgerEntryList({
             <LedgerEntryRow
               key={purchase.id}
               purchase={purchase}
+              walletName={purchase.walletId ? (walletNames.get(purchase.walletId) ?? null) : null}
               isNew={purchase.id === lastCreatedId}
               onEdit={onEdit}
               onDelete={onDelete}

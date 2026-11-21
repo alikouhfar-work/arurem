@@ -22,13 +22,20 @@ arurem/
 │   │   │   │   ├── LedgerEntryList.tsx     (+ the two empty states)
 │   │   │   │   ├── EntryForm.tsx
 │   │   │   │   ├── EntrySheet.tsx
-│   │   │   │   └── DeleteDialog.tsx
+│   │   │   │   ├── DeleteDialog.tsx
+│   │   │   │   ├── WalletStrip.tsx          filter chips above the ledger
+│   │   │   │   ├── WalletManager.tsx        full list: create/rename/delete
+│   │   │   │   ├── WalletSheet.tsx          create/edit wallet form
+│   │   │   │   └── WalletDeleteDialog.tsx   "entries stay" confirmation
 │   │   │   ├── hooks/
 │   │   │   │   ├── useLedger.ts       # reducer + persistence + selectors wiring
-│   │   │   │   └── usePurchaseForm.ts # react-hook-form + zod binding
+│   │   │   │   ├── usePurchaseForm.ts # react-hook-form + zod binding
+│   │   │   │   └── useWalletForm.ts   # the same, plus name uniqueness
 │   │   │   └── model/
 │   │   │       ├── purchase.schema.ts # zod schemas (runtime values)
 │   │   │       ├── purchase.ts        # behaviour: create, applyDraft, fineGoldGrams
+│   │   │       ├── wallet.schema.ts   # wallet schema + uniqueness refine
+│   │   │       ├── wallet.ts          # create, summarise, count unassigned
 │   │   │       ├── selectors.ts       # computeStats, filterPurchases, sortPurchases
 │   │   │       ├── storage.ts         # the ONLY module that knows localStorage
 │   │   │       ├── snapshots.ts       # rotating local snapshot ring (external store)
@@ -73,7 +80,8 @@ arurem/
 │   ├── types/                         # EVERY type declaration lives here
 │   │   ├── market.ts                   # MarketQuote, MarketRates, GoldValuation, PriceTrend
 │   │   ├── purchase.ts                # Purity, Purchase, PurchaseDraft, PurchaseFormValues
-│   │   ├── ledger.ts                  # ViewMode, SortKey, LedgerState, LedgerAction, …
+│   │   ├── wallet.ts                  # Wallet, WalletDraft, WalletSummary
+│   │   ├── ledger.ts                  # ViewMode, SortKey, WalletFilter, LedgerState, …
 │   │   ├── storage.ts                 # StorageEnvelope, LoadResult
 │   │   ├── backup.ts                  # ExportPayload, ImportResult
 │   │   ├── components.ts              # every component's props
@@ -148,17 +156,39 @@ components                 render
 ```
                  ┌───────────────┐
   UI event  ───→ │    reducer    │ ──→ new state ──→ useMemo selectors
- (create/update  │  (pure, 8     │                     ├ computeStats
-  /delete/undo/  │   actions)    │                     └ filter → sort
-  /import/       └───────┬───────┘
-  dismiss-recovery)      │
+ (create/update  │  (pure, 11    │                     ├ computeStats
+  /delete/undo/  │   actions)    │                     ├ computeWalletSummaries
+  wallet CRUD/   └───────┬───────┘                     └ filter → sort
+  /import/
+  dismiss-recovery)
                          │ effect (skips first run, skips identical payload)
                   model/storage.ts
                          ↓
-                    localStorage
+                    localStorage  (arurem.ledger.v2, envelope version 3)
                          ↓
                   model/snapshots.ts ──→ arurem.snapshots.v1 (ring of 5)
 ```
+
+### Wallets (a label on an entry, not a container)
+
+```
+Purchase.walletId ──→ Wallet.id          one optional field, one direction
+
+delete a wallet
+   ├─ wallets      → the wallet is removed
+   ├─ purchases    → walletId set to undefined, EVERY other field untouched
+   └─ Undo         → restore-wallet carries the ids it held and relinks them
+                     · an entry reassigned elsewhere in the meantime is NOT stolen
+                     · a link to a wallet not in the payload is dropped on read,
+                       so a stale backup cannot resurrect a phantom wallet
+
+save order: the entry points at a wallet; a wallet never holds a list of entries.
+That is why "at most one wallet per entry" needs no invariant check.
+```
+
+`computeWalletSummaries` and `countUnassigned` derive per-wallet totals and the
+unassigned count from `(purchases, wallets)` on render — nothing is stored, so a
+wallet's total cannot drift from the entries it claims.
 
 ### Data safety (adjacent to the ledger, never inside it)
 
@@ -179,10 +209,15 @@ loadPurchases()
         ↓ never applied automatically — RecoveryBanner asks first
 ```
 
-Three separate keys, deliberately. `arurem.ledger.v2` is the user's data,
+Three separate keys, deliberately. `arurem.ledger.v2` is the user's data — both
+entries and wallets, in one envelope at version 3 (the key name keeps its `v2` so
+existing payloads are found; the `version` field inside is what migrates),
 `arurem.snapshots.v1` is its history, and `arurem.safety.v1` is bookkeeping about
 the user's backup habits. A corrupt ledger cannot take the snapshots with it, and
-a failed bookkeeping write cannot block an export.
+a failed bookkeeping write cannot block an export. Wallets share the ledger key
+on purpose: an entry's `walletId` is meaningless without the wallet it points at,
+so one write keeps the two consistent and no restore can bring back half of the
+pair.
 
 ### Market data (separate from ledger state)
 
@@ -229,16 +264,18 @@ defaults) around a hook that is 90 lines and fully tested.
 
 ## 5. Testing
 
-184 tests / 18 files, `vitest` + Testing Library + jsdom.
+242 tests / 21 files, `vitest` + Testing Library + jsdom.
 
 | File | What it protects |
 |---|---|
 | `purchase.test.ts` | Schema rules; **the JSON round-trip regression** that froze the edit form; fine-gold maths |
+| `wallet.test.ts` | Wallet schema and behaviour; **duplicate-name rejection**; per-wallet gross/fine totals; unassigned counting incl. stale links |
 | `selectors.test.ts` | Aggregation (fine vs gross, vendor ranking, purity sums), search, sort, no-mutation |
-| `storage.test.ts` | Envelope round-trip, corrupt-JSON recovery, v1 migration, row repair, quota error |
-| `backup.test.ts` | Export shape, envelope *and* bare-array import, per-row skipping, repair |
-| `useLedger.test.ts` | All 7 reducer actions, undo index, idempotent restore, persistence failure |
+| `storage.test.ts` | Envelope round-trip, corrupt-JSON recovery, v1 migration, row repair, quota error, **v2→v3 upgrade**, wallet repair, dangling-link drop |
+| `backup.test.ts` | Export shape, envelope *and* bare-array import, per-row skipping, repair, **wallets restored with their links**, dangling links dropped, sentinel never imported |
+| `useLedger.test.ts` | All 11 reducer actions, undo index, idempotent restore, persistence failure, **delete-wallet unlinks but never deletes**, undo-relink, no-steal-on-restore |
 | `LedgerPage.test.tsx` | 12 integration tests: create, edit-with-updatedAt, delete+undo, persistence across remount, empty vs no-results, purity filter, accessible names |
+| `LedgerPageWallets.test.tsx` | 13 integration tests: create/rename/delete wallet, duplicate rejection, assign and move an entry (never duplicating), clear to "No wallet", filter by wallet and by unassigned, **delete keeps entries**, undo relinks, persistence across remount, empty wallets still listed, list shrink contract |
 | `spotFeed.test.ts` | Both provider payloads (incl. embedded HTML spans), rial→toman conversion exactly once, Tehran offsets on both widget and table routes, per-karat null propagation, rejection of unusable prices |
 | `valuation.test.ts` | Per-karat pricing (no blending), 22K/Bullion derived from 24K, independent USD and IRT legs, null propagation, flash threshold |
 | `money.test.ts` | USD cents vs toman whole numbers, Latin digits in fa-IR, em dash instead of NaN |

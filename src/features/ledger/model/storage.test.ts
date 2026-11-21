@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LEGACY_KEY, STORAGE_KEY, loadPurchases, persistPurchases } from './storage';
+import { LEGACY_KEY, STORAGE_KEY, loadLedger, persistLedger } from './storage';
 import { captureSnapshot } from './snapshots';
 import type { LoadResult } from '@/types/storage';
 import type { Purchase } from '@/types/purchase';
+import type { Wallet } from '@/types/wallet';
 
 const row = (overrides: Partial<Purchase> = {}): Purchase => ({
   id: 'fixed-id',
@@ -15,12 +16,19 @@ const row = (overrides: Partial<Purchase> = {}): Purchase => ({
   ...overrides,
 });
 
+const wallet = (overrides: Partial<Wallet> = {}): Wallet => ({
+  id: 'w1',
+  name: 'Home safe',
+  createdAt: '2024-03-01T10:00:00.000Z',
+  ...overrides,
+});
+
 describe('storage', () => {
   beforeEach(() => localStorage.clear());
 
   it('round-trips purchases through the envelope', () => {
-    persistPurchases([row()]);
-    const result: LoadResult = loadPurchases();
+    persistLedger([row()], []);
+    const result: LoadResult = loadLedger();
     expect(result.purchases).toHaveLength(1);
     expect(result.purchases[0]?.sellerName).toBe('Royal Treasury');
     expect(result.migrated).toBe(false);
@@ -28,20 +36,33 @@ describe('storage', () => {
   });
 
   it('writes a versioned envelope', () => {
-    persistPurchases([row()]);
+    persistLedger([row()], [wallet()]);
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-    expect(raw.version).toBe(2);
+    expect(raw.version).toBe(3);
     expect(Array.isArray(raw.purchases)).toBe(true);
+    expect(Array.isArray(raw.wallets)).toBe(true);
+  });
+
+  it('round-trips wallets and the entry-to-wallet link', () => {
+    persistLedger([row({ walletId: 'w1' })], [wallet()]);
+
+    const { purchases, wallets } = loadLedger();
+    expect(wallets).toHaveLength(1);
+    expect(wallets[0]?.name).toBe('Home safe');
+    expect(purchases[0]?.walletId).toBe('w1');
   });
 
   it('returns empty state when nothing is stored', () => {
-    expect(loadPurchases().purchases).toEqual([]);
+    const result = loadLedger();
+    expect(result.purchases).toEqual([]);
+    expect(result.wallets).toEqual([]);
   });
 
   it('recovers from unparseable JSON instead of throwing', () => {
     localStorage.setItem(STORAGE_KEY, '{not json');
-    const result = loadPurchases();
+    const result = loadLedger();
     expect(result.purchases).toEqual([]);
+    expect(result.wallets).toEqual([]);
     expect(result.recoveredFromCorruption).toBe(true);
   });
 
@@ -62,7 +83,7 @@ describe('storage', () => {
       }),
     );
 
-    const result = loadPurchases();
+    const result = loadLedger();
     expect(result.migrated).toBe(true);
     expect(result.purchases).toHaveLength(1);
     // acquiredAt backfilled from createdAt
@@ -85,7 +106,7 @@ describe('storage', () => {
       }),
     );
 
-    const { purchases } = loadPurchases();
+    const { purchases } = loadLedger();
     expect(purchases).toHaveLength(1);
     expect(purchases[0]?.sellerName).toBe('Good');
   });
@@ -104,7 +125,7 @@ describe('storage', () => {
         ],
       }),
     );
-    const [purchase] = loadPurchases().purchases;
+    const [purchase] = loadLedger().purchases;
     expect(purchase?.id).toBeTruthy();
     expect(purchase?.purity).toBe('18K');
   });
@@ -113,14 +134,61 @@ describe('storage', () => {
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('Quota exceeded', 'QuotaExceededError');
     });
-    expect(() => persistPurchases([row()])).toThrow(/local storage/i);
+    expect(() => persistLedger([row()], [])).toThrow(/local storage/i);
     spy.mockRestore();
+  });
+
+  describe('wallets in the envelope', () => {
+    it('loads a v2 payload that has entries but no wallets key', () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ version: 2, purchases: [row()] }),
+      );
+
+      const { purchases, wallets } = loadLedger();
+      expect(purchases).toHaveLength(1);
+      expect(wallets).toEqual([]);
+      expect(purchases[0]?.walletId).toBeUndefined();
+    });
+
+    it('drops wallets that cannot be repaired', () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          version: 3,
+          purchases: [row()],
+          wallets: [wallet(), { name: '   ' }, null, 'garbage', { id: 'w9', name: 'Bank box' }],
+        }),
+      );
+
+      const { wallets } = loadLedger();
+      expect(wallets.map((w) => w.name)).toEqual(['Home safe', 'Bank box']);
+    });
+
+    it('drops an entry link to a wallet that is not in the payload', () => {
+      // The entry is never deleted or altered beyond the link: this is the
+      // storage half of "deleting a wallet does not touch its entries".
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          version: 3,
+          purchases: [row({ walletId: 'gone' }), row({ id: 'b', walletId: 'w1' })],
+          wallets: [wallet()],
+        }),
+      );
+
+      const { purchases } = loadLedger();
+      expect(purchases).toHaveLength(2);
+      expect(purchases[0]?.walletId).toBeUndefined();
+      expect(purchases[0]?.sellerName).toBe('Royal Treasury');
+      expect(purchases[1]?.walletId).toBe('w1');
+    });
   });
 
   describe('recovery', () => {
     it('reports no recovery on a clean load', () => {
-      persistPurchases([row()]);
-      expect(loadPurchases().recovery).toBeNull();
+      persistLedger([row()], []);
+      expect(loadLedger().recovery).toBeNull();
     });
 
     it('offers the newest snapshot when the payload is unparseable', () => {
@@ -129,10 +197,20 @@ describe('storage', () => {
       });
       localStorage.setItem(STORAGE_KEY, '{not json');
 
-      const result = loadPurchases();
+      const result = loadLedger();
       expect(result.recoveredFromCorruption).toBe(true);
       expect(result.purchases).toEqual([]);
       expect(result.recovery?.purchases[0]?.sellerName).toBe('From Snapshot');
+    });
+
+    it('carries the wallets in the offered snapshot', () => {
+      captureSnapshot([row({ walletId: 'w1' })], {
+        wallets: [wallet()],
+        now: '2026-11-01T00:00:00.000Z',
+      });
+      localStorage.setItem(STORAGE_KEY, '{not json');
+
+      expect(loadLedger().recovery?.wallets?.[0]?.name).toBe('Home safe');
     });
 
     it('treats a payload that yields no readable rows as corruption', () => {
@@ -144,7 +222,7 @@ describe('storage', () => {
         JSON.stringify({ version: 2, purchases: [{ sellerName: '', weight: 0 }] }),
       );
 
-      const result = loadPurchases();
+      const result = loadLedger();
       expect(result.recoveredFromCorruption).toBe(true);
       expect(result.purchases).toEqual([]);
       expect(result.recovery?.entryCount).toBe(1);
@@ -154,14 +232,14 @@ describe('storage', () => {
     it('does not offer recovery when the payload is simply absent', () => {
       captureSnapshot([row()], { now: '2026-11-01T00:00:00.000Z' });
       // No ledger key at all: a first visit, not a loss.
-      const result = loadPurchases();
+      const result = loadLedger();
       expect(result.recoveredFromCorruption).toBe(false);
       expect(result.recovery).toBeNull();
     });
 
     it('offers no recovery when corruption is detected and no snapshot exists', () => {
       localStorage.setItem(STORAGE_KEY, '{not json');
-      expect(loadPurchases().recovery).toBeNull();
+      expect(loadLedger().recovery).toBeNull();
     });
   });
 });

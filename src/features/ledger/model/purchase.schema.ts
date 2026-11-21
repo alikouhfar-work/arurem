@@ -39,6 +39,14 @@ export const purchaseSchema = z.object({
   purity: z.enum(PURITY_VALUES, { errorMap: () => ({ message: 'Choose a purity level.' }) }),
   note: z.string().trim().max(2000, 'Keep the memo under 2000 characters.').optional(),
   acquiredAt: z.string().datetime({ offset: true }),
+  /**
+   * The single wallet this entry belongs to, or absent for none.
+   *
+   * One field, not a list on the wallet — that is what makes "an entry is in at
+   * most one wallet" a structural fact rather than a rule someone has to
+   * remember to enforce.
+   */
+  walletId: z.string().min(1).optional(),
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }).optional(),
 });
@@ -50,4 +58,5 @@ export const purchaseDraftSchema = purchaseSchema.pick({
   purity: true,
   note: true,
   acquiredAt: true,
+  walletId: true,
 });

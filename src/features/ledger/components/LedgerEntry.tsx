@@ -1,7 +1,7 @@
 import { Button } from '@/shared/ui/Button';
 import { formatDate, formatGrams } from '@/shared/lib/format';
 import { PURITY_LABELS } from '../model/purchase';
-import { CalendarDays, History, Pencil, Trash2 } from 'lucide-react';
+import { CalendarDays, History, Pencil, Trash2, Wallet as WalletIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import type { LedgerEntryCardProps, LedgerEntryRowProps } from '@/types/components';
@@ -12,7 +12,13 @@ import type { LedgerEntryCardProps, LedgerEntryRowProps } from '@/types/componen
  * name at 320px in the previous build). Every control is a real button with an
  * accessible name.
  */
-export function LedgerEntryRow({ purchase, onEdit, onDelete, isNew }: LedgerEntryRowProps) {
+export const LedgerEntryRow = ({
+  purchase,
+  walletName,
+  onEdit,
+  onDelete,
+  isNew,
+}: LedgerEntryRowProps) => {
   return (
     <motion.li
       layout="position"
@@ -44,6 +50,14 @@ export function LedgerEntryRow({ purchase, onEdit, onDelete, isNew }: LedgerEntr
             <span className="sr-only">Acquired</span>
             <time dateTime={purchase.acquiredAt}>{formatDate(purchase.acquiredAt)}</time>
           </span>
+
+          {walletName ? (
+            <span className="inline-flex items-center gap-1">
+              <WalletIcon className="size-3" aria-hidden="true" />
+              <span className="sr-only">Wallet</span>
+              <span className="truncate">{walletName}</span>
+            </span>
+          ) : null}
 
           {purchase.updatedAt ? (
             <span className="inline-flex items-center gap-1">
@@ -97,7 +111,13 @@ export function LedgerEntryRow({ purchase, onEdit, onDelete, isNew }: LedgerEntr
 }
 
 /** Grid tile — used from `sm` up; the list stays the mobile default. */
-export function LedgerEntryCard({ purchase, onEdit, onDelete, isNew }: LedgerEntryCardProps) {
+export const LedgerEntryCard = ({
+  purchase,
+  walletName,
+  onEdit,
+  onDelete,
+  isNew,
+}: LedgerEntryCardProps) => {
   return (
     <motion.li
       layout="position"
@@ -118,6 +138,12 @@ export function LedgerEntryCard({ purchase, onEdit, onDelete, isNew }: LedgerEnt
             <CalendarDays className="size-3" aria-hidden="true" />
             <time dateTime={purchase.acquiredAt}>{formatDate(purchase.acquiredAt)}</time>
           </p>
+          {walletName ? (
+            <p className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
+              <WalletIcon className="size-3" aria-hidden="true" />
+              <span className="truncate">{walletName}</span>
+            </p>
+          ) : null}
         </div>
 
         <span className="bg-accent text-gold-800 dark:text-gold-200 shrink-0 rounded-md px-2 py-1 font-mono text-[10px] font-bold">

@@ -8,7 +8,7 @@ import {
 import { EntryForm } from './EntryForm';
 import type { EntrySheetProps } from '@/types/components';
 
-export function EntrySheet({ open, onOpenChange, purchase, onSubmit }: EntrySheetProps) {
+export const EntrySheet = ({ open, onOpenChange, purchase, wallets, onSubmit }: EntrySheetProps) => {
   const isEdit = purchase !== null;
 
   return (
@@ -33,6 +33,7 @@ export function EntrySheet({ open, onOpenChange, purchase, onSubmit }: EntryShee
         <EntryForm
           key={purchase?.id ?? 'new'}
           purchase={purchase}
+          wallets={wallets}
           submitLabel={isEdit ? 'Save changes' : 'Add entry'}
           onSubmit={onSubmit}
           onCancel={() => onOpenChange(false)}

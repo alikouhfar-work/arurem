@@ -61,7 +61,7 @@ export function LedgerHeader({ version, onExport, onImport, onCreate }: LedgerHe
             </button>
 
             <p className="text-muted-foreground border-t px-2.5 pt-2 pb-1 text-[11px] leading-relaxed">
-              Importing replaces every entry in this ledger.
+              Importing replaces every entry and wallet in this ledger.
             </p>
           </PopoverContent>
         </Popover>

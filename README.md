@@ -4,7 +4,7 @@
 weight, purity, vendor, and acquisition date — entirely in your browser. No
 account, no server, no telemetry, and live pricing in USD and Iranian toman.
 
-![Version](https://img.shields.io/badge/version-2.3.0-0a3d2e)
+![Version](https://img.shields.io/badge/version-2.4.0-0a3d2e)
 
 ---
 
@@ -18,11 +18,19 @@ account, no server, no telemetry, and live pricing in USD and Iranian toman.
   own per-karat gram quotes. Each currency is labelled and formatted
   independently — toman as whole numbers, USD to the cent.
 - **Per-entry records.** Vendor, gross weight, karat, acquisition date, memo.
+- **Wallets.** Name the places your gold is kept and assign each entry to one.
+  An entry belongs to at most one wallet at a time — the link is a single field,
+  not a list on both sides, so the invariant holds by construction. Filter the
+  ledger by wallet, or look at what is unassigned. Renaming a wallet keeps its
+  entries; **deleting a wallet never deletes entries** — they keep every field
+  and simply become unassigned, and Undo relinks them.
 - **Search, filter, sort.** By vendor, memo, karat, or weight; filter by purity;
   sort by date, weight, or vendor.
 - **List and grid views.**
 - **JSON backup and restore.** Readable, versioned, yours. Imports are validated
-  row by row and report what was skipped.
+  row by row and report what was skipped. Wallets ride with the entries, and a
+  link to a wallet that is not in the file is dropped rather than restored as a
+  pointer to nothing.
 - **Offline PWA.** Installs to the home screen and works with no connection.
 - **Data safety.** The app asks the browser to protect its storage from eviction,
   keeps the last five ledger states as local snapshots, and offers the newest one
@@ -153,6 +161,30 @@ These are enforced, not just documented:
 | `docs/audit/` | Before/after screenshots at mobile, tablet, and desktop in both themes |
 
 ## Version history
+
+### v2.4.0
+
+- **Wallets.** Named places gold is kept — a safe, a bank box, a relative's
+  house — with create, rename, and delete, plus a filter strip above the ledger
+- **An entry belongs to at most one wallet, structurally.** The link is a single
+  optional `walletId` on the entry, not a membership list on the wallet, so no
+  write path can put one entry in two places. Moving an entry is one field
+  change, and there is nothing to keep in sync
+- **Deleting a wallet does not touch its entries.** They keep every field they
+  were saved with and become unassigned; the confirmation dialog says exactly
+  that, and Undo restores the wallet and relinks the entries it held
+- **Unassigned is a first-class slice.** Entries with no wallet — or with a link
+  to a wallet that no longer exists — are counted and filterable, so nothing can
+  become invisible by having no wallet
+- **Storage upgraded to v3** with `wallets` beside `purchases` in the same
+  envelope. A v2 payload loads unchanged, a dangling link is dropped on read,
+  and the next write upgrades the version. Snapshots and backups carry wallets
+  too, so a recovery cannot strand links
+- **Duplicate wallet names are rejected**, case- and padding-insensitively: two
+  "Home safe" wallets are indistinguishable in a select
+- 242 tests (up from 187), including the wallet reducer (unlink-not-delete,
+  undo-relink, no-steal-on-restore), storage migration and dangling links,
+  import repair, and twelve integration tests through the real page
 
 ### v2.3.0
 

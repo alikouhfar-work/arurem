@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import type { Purchase, PurchaseDraft } from './purchase';
-import type { LedgerStats, PurityFilter, SortKey, ViewMode } from './ledger';
+import type { Wallet, WalletDraft, WalletSummary } from './wallet';
+import type { LedgerStats, PurityFilter, SortKey, ViewMode, WalletFilter } from './ledger';
 import type { MarketRatesStatus, MarketQuote } from './market';
 import type { BackupSnapshot, ExportNudge, PersistenceStatus } from './persistence';
 
@@ -40,8 +41,32 @@ export type LedgerToolbarProps = {
   onClearFilters: () => void;
 };
 
+export type WalletStripProps = {
+  wallets: readonly Wallet[];
+  summaries: readonly WalletSummary[];
+  unassignedCount: number;
+  walletFilter: WalletFilter;
+  onWalletFilterChange: (value: WalletFilter) => void;
+  onManageWallets: () => void;
+  onCreateWallet: () => void;
+};
+
+export type WalletManagerDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  summaries: readonly WalletSummary[];
+  unassignedCount: number;
+  walletFilter: WalletFilter;
+  onWalletFilterChange: (value: WalletFilter) => void;
+  onCreate: () => void;
+  onEdit: (wallet: Wallet) => void;
+  onDelete: (wallet: Wallet) => void;
+};
+
 export type LedgerEntryRowProps = {
   purchase: Purchase;
+  /** Resolved name of the entry's wallet, or null when it has none. */
+  walletName: string | null;
   onEdit: (purchase: Purchase) => void;
   onDelete: (purchase: Purchase) => void;
   isNew?: boolean;
@@ -54,6 +79,7 @@ export type LedgerEntryListProps = {
   viewMode: ViewMode;
   hasAnyEntries: boolean;
   lastCreatedId: string | null;
+  walletNames: ReadonlyMap<string, string>;
   onEdit: (purchase: Purchase) => void;
   onDelete: (purchase: Purchase) => void;
   onCreate: () => void;
@@ -70,14 +96,42 @@ export type EntrySheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   purchase: Purchase | null;
+  wallets: readonly Wallet[];
   onSubmit: (draft: PurchaseDraft) => void;
 };
 
 export type EntryFormProps = {
   purchase: Purchase | null;
+  wallets: readonly Wallet[];
   submitLabel: string;
   onSubmit: (draft: PurchaseDraft) => void;
   onCancel: () => void;
+};
+
+export type WalletSheetProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  wallet: Wallet | null;
+  wallets: readonly Wallet[];
+  onSubmit: (draft: WalletDraft) => void;
+};
+
+export type WalletFormProps = {
+  wallet: Wallet | null;
+  wallets: readonly Wallet[];
+  submitLabel: string;
+  onSubmit: (draft: WalletDraft) => void;
+  onCancel: () => void;
+};
+
+export type WalletManagerProps = WalletManagerDialogProps;
+
+export type WalletDeleteDialogProps = {
+  wallet: Wallet | null;
+  /** How many entries currently point at this wallet. */
+  entryCount: number;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (wallet: Wallet) => void;
 };
 
 export type EmptyStateProps = {

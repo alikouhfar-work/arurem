@@ -1,6 +1,5 @@
 import { SNAPSHOT_MIN_INTERVAL_MS, SNAPSHOT_RETENTION } from '@/constants/safety';
-import type { CaptureSnapshotOptions } from '@/types/persistence';
-import type { BackupSnapshot, BackupSnapshotMeta } from '@/types/persistence';
+import type { BackupSnapshot, BackupSnapshotMeta, CaptureSnapshotOptions } from '@/types/persistence';
 import type { Purchase } from '@/types/purchase';
 
 /**
@@ -29,7 +28,8 @@ const isSnapshot = (value: unknown): value is BackupSnapshot => {
     typeof value.savedAt === 'string' &&
     !Number.isNaN(Date.parse(value.savedAt)) &&
     typeof value.entryCount === 'number' &&
-    Array.isArray(value.purchases)
+    Array.isArray(value.purchases) &&
+    (value.wallets === undefined || Array.isArray(value.wallets))
   );
 };
 
@@ -139,10 +139,14 @@ export const clearSnapshots = (): void => {
 /**
  * Records the CURRENT state, but only when it differs from the newest snapshot
  * and the minimum interval has passed. Returns the ring as written.
+ *
+ * Wallets are captured with the entries: restoring an entry whose wallet is not
+ * in the same snapshot would leave it unassigned, which is a different ledger
+ * than the one that was saved.
  */
 export const captureSnapshot = (
   purchases: readonly Purchase[],
-  { force = false, now = new Date().toISOString() }: CaptureSnapshotOptions = {},
+  { wallets = [], force = false, now = new Date().toISOString() }: CaptureSnapshotOptions = {},
 ): BackupSnapshot[] => {
   const existing = readSnapshots();
   const newest = existing[0];
@@ -153,7 +157,8 @@ export const captureSnapshot = (
 
     const unchanged =
       newest.purchases.length === purchases.length &&
-      JSON.stringify(newest.purchases) === JSON.stringify(purchases);
+      JSON.stringify(newest.purchases) === JSON.stringify(purchases) &&
+      JSON.stringify(newest.wallets ?? []) === JSON.stringify(wallets);
     if (unchanged) return existing;
   }
 
@@ -162,6 +167,7 @@ export const captureSnapshot = (
     savedAt: now,
     entryCount: purchases.length,
     purchases: [...purchases],
+    wallets: [...wallets],
   };
 
   const next = [snapshot, ...existing].slice(0, SNAPSHOT_RETENTION);

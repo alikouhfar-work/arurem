@@ -7,6 +7,7 @@ import {
 } from '@/shared/lib/storagePersistence';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { Purchase } from '@/types/purchase';
+import type { Wallet } from '@/types/wallet';
 import type { SafetyMeta } from '@/types/persistence';
 import type { PersistenceStatus, UseDataSafetyResult } from '@/types/persistence';
 
@@ -25,7 +26,10 @@ import type { PersistenceStatus, UseDataSafetyResult } from '@/types/persistence
  * this hook only observes `purchases`.
  */
 
-export const useDataSafety = (purchases: readonly Purchase[]): UseDataSafetyResult => {
+export const useDataSafety = (
+  purchases: readonly Purchase[],
+  wallets: readonly Wallet[] = [],
+): UseDataSafetyResult => {
   const [persistence, setPersistence] = useState<PersistenceStatus>('unknown');
   const [meta, setMeta] = useState<SafetyMeta>(loadSafetyMeta);
   const requested = useRef(false);
@@ -69,8 +73,8 @@ export const useDataSafety = (purchases: readonly Purchase[]): UseDataSafetyResu
   // empty ledger is never captured: an empty snapshot cannot rescue anything.
   useEffect(() => {
     if (purchases.length === 0) return;
-    captureSnapshot(purchases);
-  }, [purchases]);
+    captureSnapshot(purchases, { wallets });
+  }, [purchases, wallets]);
 
   const markExported = useCallback(() => {
     const next: SafetyMeta = { lastExportedAt: new Date().toISOString(), nudgeDismissedAt: null };

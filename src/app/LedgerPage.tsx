@@ -1,6 +1,6 @@
 import { AppShell } from '@/shared/components/AppShell';
 import { showError, showInfo, showSuccess } from '@/shared/ui/toast';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { LedgerEntryList } from '@/features/ledger/components/LedgerEntryList';
 import { LedgerHeader } from '@/features/ledger/components/LedgerHeader';
 import { LedgerFooter } from '@/features/ledger/components/LedgerFooter';
@@ -11,12 +11,22 @@ import { LedgerToolbar } from '@/features/ledger/components/LedgerToolbar';
 import { PriceTicker } from '@/features/market/components/PriceTicker';
 import { EntrySheet } from '@/features/ledger/components/EntrySheet';
 import { DeleteDialog } from '@/features/ledger/components/DeleteDialog';
+import { WalletManager } from '@/features/ledger/components/WalletManager';
+import { WalletSheet } from '@/features/ledger/components/WalletSheet';
+import { WalletStrip } from '@/features/ledger/components/WalletStrip';
+import { WalletDeleteDialog } from '@/features/ledger/components/WalletDeleteDialog';
 import { useLedger, useLedgerView } from '@/features/ledger/hooks/useLedger';
 import { useDataSafety } from '@/features/ledger/hooks/useDataSafety';
 import { useMarketRates } from '@/shared/hooks/useMarketRates';
 import { downloadExport, parseImport, readFileAsText } from '@/features/ledger/model/backup';
+import {
+  computeWalletSummaries,
+  countUnassigned,
+  entriesInWallet,
+} from '@/features/ledger/model/wallet';
 import type { Purchase, PurchaseDraft } from '@/types/purchase';
-import type { PurityFilter, SortKey, ViewMode } from '@/types/ledger';
+import type { Wallet, WalletDraft } from '@/types/wallet';
+import type { PurityFilter, SortKey, ViewMode, WalletFilter } from '@/types/ledger';
 
 /**
  * Ledger page — the only component that composes features. All state lives in
@@ -29,11 +39,12 @@ export const LedgerPage = () => {
   const market = useMarketRates();
   // Observes the ledger; never mutates it. Snapshots, eviction protection, and
   // the export reminder are all consequences of `purchases` changing.
-  const safety = useDataSafety(ledger.purchases);
+  const safety = useDataSafety(ledger.purchases, ledger.wallets);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('acquired-desc');
   const [purityFilter, setPurityFilter] = useState<PurityFilter>('all');
+  const [walletFilter, setWalletFilter] = useState<WalletFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -41,8 +52,44 @@ export const LedgerPage = () => {
   const [pendingDelete, setPendingDelete] = useState<Purchase | null>(null);
   const [lastCreatedId, setLastCreatedId] = useState<string | null>(null);
 
-  const visible = useLedgerView(ledger.purchases, { searchQuery, sortKey, purityFilter });
-  const isFiltered = searchQuery.trim().length > 0 || purityFilter !== 'all';
+  const [walletManagerOpen, setWalletManagerOpen] = useState(false);
+  const [walletSheetOpen, setWalletSheetOpen] = useState(false);
+  const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
+  const [pendingDeleteWallet, setPendingDeleteWallet] = useState<Wallet | null>(null);
+
+  const visible = useLedgerView(ledger.purchases, {
+    searchQuery,
+    sortKey,
+    purityFilter,
+    walletFilter,
+    wallets: ledger.wallets,
+  });
+
+  const isFiltered = searchQuery.trim().length > 0 || purityFilter !== 'all' || walletFilter !== 'all';
+
+  const walletSummaries = useMemo(
+    () => computeWalletSummaries(ledger.purchases, ledger.wallets),
+    [ledger.purchases, ledger.wallets],
+  );
+
+  const walletNames = useMemo(
+    () => new Map(ledger.wallets.map((wallet) => [wallet.id, wallet.name] as const)),
+    [ledger.wallets],
+  );
+
+  const unassignedCount = useMemo(
+    () => countUnassigned(ledger.purchases, ledger.wallets),
+    [ledger.purchases, ledger.wallets],
+  );
+
+  /**
+   * A filter pointing at a wallet that no longer exists would show an empty
+   * ledger with no explanation, so it falls back to `all` instead.
+   */
+  const activeWalletFilter: WalletFilter =
+    walletFilter !== 'all' && walletFilter !== 'none' && !walletNames.has(walletFilter)
+      ? 'all'
+      : walletFilter;
 
   const openCreate = useCallback(() => {
     setEditing(null);
@@ -57,6 +104,7 @@ export const LedgerPage = () => {
   const clearFilters = useCallback(() => {
     setSearchQuery('');
     setPurityFilter('all');
+    setWalletFilter('all');
   }, []);
 
   const handleSubmit = useCallback(
@@ -90,24 +138,82 @@ export const LedgerPage = () => {
     [ledger],
   );
 
+  const openCreateWallet = useCallback(() => {
+    setEditingWallet(null);
+    setWalletManagerOpen(false);
+    setWalletSheetOpen(true);
+  }, []);
+
+  const openEditWallet = useCallback((wallet: Wallet) => {
+    setEditingWallet(wallet);
+    setWalletManagerOpen(false);
+    setWalletSheetOpen(true);
+  }, []);
+
+  const handleWalletSubmit = useCallback(
+    (draft: WalletDraft) => {
+      if (editingWallet) {
+        ledger.updateWallet(editingWallet.id, draft);
+        showSuccess('Wallet updated', { description: `${draft.name} saved.` });
+      } else {
+        const created = ledger.createWallet(draft);
+        showSuccess('Wallet created', {
+          description: `${created.name} is ready — assign entries to it from the entry form.`,
+        });
+      }
+      setWalletSheetOpen(false);
+      setEditingWallet(null);
+    },
+    [editingWallet, ledger],
+  );
+
+  /**
+   * Deletes the wallet, not its entries. The entries lose their link — there is
+   * no wallet left to point at — but nothing else about them changes, and Undo
+   * relinks them.
+   */
+  const handleDeleteWallet = useCallback(
+    (wallet: Wallet) => {
+      const index = ledger.wallets.findIndex((item) => item.id === wallet.id);
+      const linkedIds = entriesInWallet(ledger.purchases, wallet.id).map((entry) => entry.id);
+
+      ledger.removeWallet(wallet.id);
+      setPendingDeleteWallet(null);
+      if (walletFilter === wallet.id) setWalletFilter('all');
+
+      showSuccess(`Deleted wallet ${wallet.name}`, {
+        description:
+          linkedIds.length === 0
+            ? 'It held no entries.'
+            : `${linkedIds.length} ${linkedIds.length === 1 ? 'entry stays' : 'entries stay'} in your ledger, now unassigned.`,
+        action: {
+          label: 'Undo',
+          onClick: () => ledger.restoreWallet(wallet, Math.max(0, index), linkedIds),
+        },
+        duration: 8000,
+      });
+    },
+    [ledger, walletFilter],
+  );
+
   const handleExport = useCallback(() => {
     if (ledger.purchases.length === 0) {
       showInfo('Nothing to export yet', { description: 'Add an entry first.' });
       return;
     }
-    downloadExport(ledger.purchases);
+    downloadExport(ledger.purchases, ledger.wallets);
     // Recorded only after the download is triggered, so the reminder reflects
     // an export that actually happened rather than one that was asked for.
     safety.markExported();
     showSuccess('Backup downloaded', {
       description: `${ledger.purchases.length} ${ledger.purchases.length === 1 ? 'entry' : 'entries'} saved as JSON.`,
     });
-  }, [ledger.purchases, safety]);
+  }, [ledger.purchases, ledger.wallets, safety]);
 
   const handleRestoreSnapshot = useCallback(() => {
     if (!ledger.recovery) return;
-    const { purchases } = ledger.recovery;
-    ledger.replaceAll(purchases);
+    const { purchases, wallets } = ledger.recovery;
+    ledger.replaceAll(purchases, wallets ?? []);
     showSuccess('Snapshot restored', {
       description: `${purchases.length} ${purchases.length === 1 ? 'entry' : 'entries'} recovered from a local copy.`,
     });
@@ -124,7 +230,7 @@ export const LedgerPage = () => {
           return;
         }
 
-        ledger.replaceAll(result.purchases);
+        ledger.replaceAll(result.purchases, result.wallets);
         showSuccess(
           `Imported ${result.purchases.length} ${result.purchases.length === 1 ? 'entry' : 'entries'}`,
           {
@@ -200,6 +306,16 @@ export const LedgerPage = () => {
           Ledger entries
         </h2>
 
+        <WalletStrip
+          wallets={ledger.wallets}
+          summaries={walletSummaries}
+          unassignedCount={unassignedCount}
+          walletFilter={activeWalletFilter}
+          onWalletFilterChange={setWalletFilter}
+          onManageWallets={() => setWalletManagerOpen(true)}
+          onCreateWallet={openCreateWallet}
+        />
+
         <LedgerToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -220,6 +336,7 @@ export const LedgerPage = () => {
           viewMode={viewMode}
           hasAnyEntries={ledger.purchases.length > 0}
           lastCreatedId={lastCreatedId}
+          walletNames={walletNames}
           onEdit={openEdit}
           onDelete={setPendingDelete}
           onCreate={openCreate}
@@ -242,6 +359,7 @@ export const LedgerPage = () => {
           if (!open) setEditing(null);
         }}
         purchase={editing}
+        wallets={ledger.wallets}
         onSubmit={handleSubmit}
       />
 
@@ -252,6 +370,42 @@ export const LedgerPage = () => {
         }}
         onConfirm={handleDelete}
       />
+
+      <WalletManager
+        open={walletManagerOpen}
+        onOpenChange={setWalletManagerOpen}
+        summaries={walletSummaries}
+        unassignedCount={unassignedCount}
+        walletFilter={activeWalletFilter}
+        onWalletFilterChange={setWalletFilter}
+        onCreate={openCreateWallet}
+        onEdit={openEditWallet}
+        onDelete={setPendingDeleteWallet}
+      />
+
+      <WalletSheet
+        open={walletSheetOpen}
+        onOpenChange={(open) => {
+          setWalletSheetOpen(open);
+          if (!open) setEditingWallet(null);
+        }}
+        wallet={editingWallet}
+        wallets={ledger.wallets}
+        onSubmit={handleWalletSubmit}
+      />
+
+      <WalletDeleteDialog
+        wallet={pendingDeleteWallet}
+        entryCount={
+          pendingDeleteWallet
+            ? entriesInWallet(ledger.purchases, pendingDeleteWallet.id).length
+            : 0
+        }
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteWallet(null);
+        }}
+        onConfirm={handleDeleteWallet}
+      />
     </AppShell>
   );
-}
+};
